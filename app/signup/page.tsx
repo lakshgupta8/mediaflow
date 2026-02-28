@@ -2,9 +2,36 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Film, User, Mail, Lock, ArrowRight, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Film, User, Mail, Lock, ArrowRight } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { signupSchema, type SignupFormData } from '@/lib/validations/auth';
+import { useDispatch } from 'react-redux';
+import { login } from '@/store/features/authSlice';
 
 export default function SignupPage() {
+    const router = useRouter();
+    const dispatch = useDispatch();
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm<SignupFormData>({
+        resolver: zodResolver(signupSchema),
+    });
+
+    const onSubmit = (data: SignupFormData) => {
+        // Mock register and auto-login
+        dispatch(login({
+            id: crypto.randomUUID(),
+            name: data.name,
+            email: data.email,
+        }));
+        router.push('/');
+    };
+
     return (
         <div className="flex flex-col bg-background-light dark:bg-background-dark w-full min-h-screen font-display antialiased">
             <div className="flex md:flex-row flex-col flex-1 w-full min-h-screen">
@@ -15,7 +42,7 @@ export default function SignupPage() {
                         className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700"
                         style={{ backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuC9p7d98SzWpW2DOfhWGwmykFazulhByEEfhLKPhijjuymlYFar1N-KXY44-QGigoYXEuKEKaWCFEP8q4Hjy_SpAERlqskO7aockVb8O0adcEiV8FqfftcuF1hkjY7yKmCPGcF4GQASj1_FE7AK5oXkBMkhGJ2PMosxs3Z0Bvz89SaOVhS9EGU3bioy7QvRacgJPtedmUJMyANr3P1CXS55jwYvFbENYqRIfGtoyzTmVUhXJraz3__DccyQTI2m6vQopbRaXbGP8g')` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/60 to-transparent"></div>
+                    <div className="absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/60 to-transparent"></div>
 
                     <div className="z-10 relative flex flex-col justify-end p-12 lg:p-16 h-full">
                         <Link href="/" className="group flex items-center gap-3 mb-8 w-fit">
@@ -60,7 +87,7 @@ export default function SignupPage() {
                         </div>
 
                         {/* Signup Form */}
-                        <form className="flex flex-col gap-6" onSubmit={(e) => e.preventDefault()}>
+                        <form className="flex flex-col gap-6" onSubmit={handleSubmit(onSubmit)}>
 
                             {/* Name Input */}
                             <div className="flex flex-col gap-2.5">
@@ -72,9 +99,13 @@ export default function SignupPage() {
                                     <input
                                         type="text"
                                         placeholder="John Doe"
-                                        className="bg-white dark:bg-surface-dark pr-4 pl-12 border-2 border-slate-200 focus:border-primary dark:border-white/5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300"
+                                        {...register('name')}
+                                        className={`bg-white dark:bg-surface-dark pr-4 pl-12 border-2 ${errors.name ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300`}
                                     />
                                 </div>
+                                {errors.name && (
+                                    <span className="ml-1 font-medium text-red-500 text-sm">{errors.name.message}</span>
+                                )}
                             </div>
 
                             {/* Email Input */}
@@ -87,9 +118,13 @@ export default function SignupPage() {
                                     <input
                                         type="email"
                                         placeholder="name@example.com"
-                                        className="bg-white dark:bg-surface-dark pr-4 pl-12 border-2 border-slate-200 focus:border-primary dark:border-white/5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300"
+                                        {...register('email')}
+                                        className={`bg-white dark:bg-surface-dark pr-4 pl-12 border-2 ${errors.email ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300`}
                                     />
                                 </div>
+                                {errors.email && (
+                                    <span className="ml-1 font-medium text-red-500 text-sm">{errors.email.message}</span>
+                                )}
                             </div>
 
                             {/* Password Input */}
@@ -102,9 +137,13 @@ export default function SignupPage() {
                                     <input
                                         type="password"
                                         placeholder="••••••••"
-                                        className="bg-white dark:bg-surface-dark pr-12 pl-12 border-2 border-slate-200 focus:border-primary dark:border-white/5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300"
+                                        {...register('password')}
+                                        className={`bg-white dark:bg-surface-dark pr-12 pl-12 border-2 ${errors.password ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300`}
                                     />
                                 </div>
+                                {errors.password && (
+                                    <span className="ml-1 font-medium text-red-500 text-sm">{errors.password.message}</span>
+                                )}
                             </div>
 
                             {/* Confirm Password Input */}
@@ -117,15 +156,19 @@ export default function SignupPage() {
                                     <input
                                         type="password"
                                         placeholder="••••••••"
-                                        className="bg-white dark:bg-surface-dark pr-12 pl-12 border-2 border-slate-200 focus:border-primary dark:border-white/5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300"
+                                        {...register('confirmPassword')}
+                                        className={`bg-white dark:bg-surface-dark pr-12 pl-12 border-2 ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300`}
                                     />
                                 </div>
+                                {errors.confirmPassword && (
+                                    <span className="ml-1 font-medium text-red-500 text-sm">{errors.confirmPassword.message}</span>
+                                )}
                             </div>
 
                             {/* Submit Button */}
-                            <button onClick={() => window.location.href = '/'} className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 hover:shadow-primary/20 hover:shadow-xl mt-4 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
-                                <span>Create Account</span>
-                                <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
+                            <button disabled={isSubmitting} type="submit" className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-70 hover:shadow-primary/20 hover:shadow-xl mt-4 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
+                                <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
+                                {!isSubmitting && <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />}
                             </button>
                         </form>
 

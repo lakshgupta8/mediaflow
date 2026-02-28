@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Play, Plus, Share2, Star, ThumbsUp, MessageSquare, Edit3, ChevronDown, MonitorPlay } from 'lucide-react';
+import { Play, Plus, Share2, Star, ChevronDown, MonitorPlay } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SeriesDetailsPage() {
@@ -83,10 +83,10 @@ export default function SeriesDetailsPage() {
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
             {/* Hero Section */}
-            <section className="relative flex items-end w-full min-h-[500px] aspect-[21/9]">
+            <section className="relative flex items-end w-full min-h-[500px] aspect-21/9">
                 <div className="z-0 absolute inset-0">
-                    <div className="z-10 absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/40 to-transparent"></div>
-                    <div className="z-10 absolute inset-0 bg-gradient-to-r from-background-dark via-transparent to-transparent"></div>
+                    <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+                    <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
                     <div
                         className="bg-cover bg-center w-full h-full"
                         style={{ backgroundImage: `url('${backdropImg}')` }}

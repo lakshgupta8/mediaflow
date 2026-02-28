@@ -62,7 +62,7 @@ export function Sidebar() {
                     })}
                 </nav>
 
-                <div className="bg-gradient-to-r from-transparent via-white/10 to-transparent my-2 w-full h-px"></div>
+                <div className="bg-linear-to-r from-transparent via-white/10 to-transparent my-2 w-full h-px"></div>
 
                 <div className="relative flex flex-col gap-2">
                     <p className="px-4 font-bold text-slate-500 text-xs uppercase tracking-wider">

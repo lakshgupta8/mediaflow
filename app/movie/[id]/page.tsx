@@ -40,10 +40,10 @@ export default function MovieDetailsPage() {
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
             {/* Hero Section */}
-            <section className="relative flex items-end w-full min-h-[500px] aspect-[21/9]">
+            <section className="relative flex items-end w-full min-h-[500px] aspect-21/9">
                 <div className="z-0 absolute inset-0">
-                    <div className="z-10 absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/40 to-transparent"></div>
-                    <div className="z-10 absolute inset-0 bg-gradient-to-r from-background-dark via-transparent to-transparent"></div>
+                    <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+                    <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
                     <div
                         className="bg-cover bg-center w-full h-full"
                         style={{ backgroundImage: `url('${movie.backdrop}')` }}
@@ -229,7 +229,7 @@ export default function MovieDetailsPage() {
                             </div>
                             <div className="flex justify-between items-center bg-white/5 px-4 py-2.5 rounded-lg">
                                 <span className="font-medium text-slate-400 text-sm">Revenue</span>
-                                <span className="font-semibold text-primary text-slate-200 text-sm">$701,729,206</span>
+                                <span className="font-semibold text-primary text-sm">$701,729,206</span>
                             </div>
                         </div>
                     </section>

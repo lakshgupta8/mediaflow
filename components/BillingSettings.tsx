@@ -84,7 +84,7 @@ export default function BillingSettings() {
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {billingHistory.map((item, index) => (
-                                <tr key={index} className="group hover:bg-white/[0.02] transition-colors">
+                                <tr key={index} className="group hover:bg-white/2 transition-colors">
                                     <td className="py-4 font-medium text-white">{item.date}</td>
                                     <td className="py-4 text-slate-400">{item.invoice}</td>
                                     <td className="py-4 font-bold text-white">{item.amount}</td>
