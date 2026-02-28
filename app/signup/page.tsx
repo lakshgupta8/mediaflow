@@ -9,10 +9,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupFormData } from '@/lib/validations/auth';
 import { useDispatch } from 'react-redux';
 import { login } from '@/store/features/authSlice';
+import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
 
 export default function SignupPage() {
     const router = useRouter();
     const dispatch = useDispatch();
+    const [authError, setAuthError] = useState('');
 
     const {
         register,
@@ -22,14 +25,36 @@ export default function SignupPage() {
         resolver: zodResolver(signupSchema),
     });
 
-    const onSubmit = (data: SignupFormData) => {
-        // Mock register and auto-login
-        dispatch(login({
-            id: crypto.randomUUID(),
-            name: data.name,
-            email: data.email,
-        }));
-        router.push('/');
+    const onSubmit = async (data: SignupFormData) => {
+        setAuthError('');
+        try {
+            const { data: authData, error } = await supabase.auth.signUp({
+                email: data.email,
+                password: data.password,
+                options: {
+                    data: {
+                        name: data.name,
+                    }
+                }
+            });
+
+            if (error) throw error;
+
+            if (authData.user) {
+                dispatch(login({
+                    id: authData.user.id,
+                    name: authData.user.user_metadata?.name || data.name,
+                    email: authData.user.email!,
+                }));
+                router.push('/');
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                setAuthError(error.message);
+            } else {
+                setAuthError(String(error));
+            }
+        }
     };
 
     return (
@@ -166,6 +191,11 @@ export default function SignupPage() {
                             </div>
 
                             {/* Submit Button */}
+                            {authError && (
+                                <div className="bg-red-500/10 p-3 border border-red-500/20 rounded-xl text-red-500 text-sm italic">
+                                    {authError}
+                                </div>
+                            )}
                             <button disabled={isSubmitting} type="submit" className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-70 hover:shadow-primary/20 hover:shadow-xl mt-4 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
                                 <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
                                 {!isSubmitting && <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />}

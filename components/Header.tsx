@@ -1,8 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, Bell } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useDispatch } from "react-redux";
 import { setSearchQuery } from "@/store/features/searchSlice";
 import { useEffect } from "react";
@@ -13,21 +13,29 @@ type SearchForm = {
 
 export function Header() {
     const pathname = usePathname();
+    const router = useRouter();
     const dispatch = useDispatch();
 
-    const { register, watch, handleSubmit } = useForm<SearchForm>({
+    const { register, control, handleSubmit } = useForm<SearchForm>({
         defaultValues: { query: "" }
     });
 
-    const query = watch("query");
+    const query = useWatch({
+        control,
+        name: "query"
+    });
 
     useEffect(() => {
-        dispatch(setSearchQuery(query));
+        if (typeof query === "string") {
+            dispatch(setSearchQuery(query));
+        }
     }, [query, dispatch]);
 
     const onSubmit = (data: SearchForm) => {
         dispatch(setSearchQuery(data.query));
-        // Can add navigation to search page here if needed
+        if (data.query.trim()) {
+            router.push(`/search?q=${encodeURIComponent(data.query.trim())}`);
+        }
     };
 
     if (pathname === '/login' || pathname === '/signup') return null;

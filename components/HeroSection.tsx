@@ -1,20 +1,53 @@
 "use client";
 
-import { Play, Plus } from "lucide-react";
+import { Play, Plus, Check } from "lucide-react";
 import { motion } from "framer-motion";
+import type { MediaItem } from "@/services/tmdbService";
+import { useSupabase } from "@/hooks/useSupabase";
+import Link from "next/link";
 
-export function HeroSection() {
+interface HeroSectionProps {
+    heroItem?: MediaItem;
+    isLoading?: boolean;
+}
+
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
+
+export function HeroSection({ heroItem, isLoading }: HeroSectionProps) {
+    const { watchlist, addToWatchlist, removeFromWatchlist } = useSupabase();
+
+    if (isLoading || !heroItem) {
+        return (
+            <div className="relative bg-white/5 w-full h-[70vh] min-h-[600px] animate-pulse" />
+        );
+    }
+
+    const title = heroItem.title || heroItem.name || 'Unknown';
+    const backdropUrl = heroItem.backdrop_path ? `${TMDB_IMAGE_BASE}${heroItem.backdrop_path}` : '';
+    const rating = heroItem.vote_average ? heroItem.vote_average.toFixed(1) : 'NR';
+
+    const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === heroItem.id);
+
+    const toggleWatchlist = () => {
+        if (isWatchlisted) {
+            removeFromWatchlist({ mediaId: heroItem.id, mediaType: heroItem.media_type as 'movie' | 'tv' || 'movie' });
+        } else {
+            addToWatchlist({ mediaId: heroItem.id, mediaType: heroItem.media_type as 'movie' | 'tv' || 'movie' });
+        }
+    };
+
+    const href = `/${heroItem.media_type === 'tv' ? 'series' : 'movie'}/${heroItem.id}`;
+
     return (
         <div className="relative w-full h-[70vh] min-h-[600px]">
             <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
-                    backgroundImage:
-                        "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqtYSAwmXkSU2A7X4Puy-8KTnMoPk2XZRMLfPCaLpU6hzs5KjEfJNCjaWiiwThZ_vSQDmULIwxlaQ__mVhCua5dBsJQ1MdqjxyRDNcnWmBykOsnIuHnsEHKqUHoWd5ZwngeERkyvLmGYuwPKS3Tf8IfAKLq5bDyFk1oDF9PXF29iUuMucCXmWsDwnwgcopCejYg25injeMVWQZ8br2AM5x-O8-SF30TmLTSXgWoXdBtSyU1rfVrGk-a_PJGGFTUsXoMXf6lCXOIg')",
+                    backgroundImage: `url('${backdropUrl}')`,
                 }}
             ></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/60 to-transparent"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-background-dark via-background-dark/40 to-transparent"></div>
+            <div className="absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/60 to-transparent"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-background-dark via-background-dark/40 to-transparent"></div>
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -24,11 +57,13 @@ export function HeroSection() {
             >
                 <div className="flex items-center gap-3">
                     <span className="bg-primary px-2 py-1 rounded font-bold text-background-dark text-xs uppercase tracking-wider">
-                        New Release
+                        Trending
                     </span>
-                    <span className="bg-black/40 backdrop-blur-sm px-2 py-1 border border-white/20 rounded font-bold text-slate-300 text-xs uppercase tracking-wider">
-                        Sci-Fi
-                    </span>
+                    {heroItem.media_type === 'tv' && (
+                        <span className="bg-black/40 backdrop-blur-sm px-2 py-1 border border-white/20 rounded font-bold text-slate-300 text-xs uppercase tracking-wider">
+                            TV Series
+                        </span>
+                    )}
                     <span className="flex items-center gap-1 font-bold text-primary text-sm">
                         <svg
                             className="fill-current w-4 h-4"
@@ -37,27 +72,26 @@ export function HeroSection() {
                         >
                             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                         </svg>
-                        9.8
+                        {rating}
                     </span>
                 </div>
                 <h1 className="drop-shadow-2xl font-bold text-white text-5xl md:text-7xl leading-[1.1] tracking-tight">
-                    The Cyber <br />{" "}
-                    <span className="bg-clip-text bg-gradient-to-r from-white to-slate-400 text-transparent">
-                        Resurgence
-                    </span>
+                    {title}
                 </h1>
                 <p className="drop-shadow-md max-w-2xl text-slate-300 text-lg line-clamp-3 leading-relaxed">
-                    In a future where humanity has merged with the digital realm, a lone
-                    hacker uncovers a conspiracy that threatens to reboot civilization
-                    itself. Prepare for a visual masterpiece that redefines reality.
+                    {heroItem.overview}
                 </p>
 
                 <div className="flex items-center gap-4 pt-2">
-                    <button className="flex items-center gap-2 bg-primary hover:bg-green-400 shadow-[0_0_20px_rgba(19,236,91,0.4)] px-8 py-3.5 rounded-xl font-bold text-background-dark text-base hover:scale-105 transition-all transform">
+                    <Link href={href} className="flex items-center gap-2 bg-primary hover:bg-green-400 shadow-[0_0_20px_rgba(19,236,91,0.4)] px-8 py-3.5 rounded-xl font-bold text-background-dark text-base hover:scale-105 transition-all transform">
                         <Play fill="currentColor" size={20} /> Watch Now
-                    </button>
-                    <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md px-6 py-3.5 border border-white/10 rounded-xl font-semibold text-white text-base transition-all">
-                        <Plus size={20} /> Add to Watchlist
+                    </Link>
+                    <button
+                        onClick={toggleWatchlist}
+                        className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                    >
+                        {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
+                        {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
                     </button>
                 </div>
             </motion.div>
