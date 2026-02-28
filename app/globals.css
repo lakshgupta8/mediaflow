@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #13ec5b;
+  --color-background-light: #f6f8f6;
+  --color-background-dark: #050a06;
+  --color-surface-dark: #112217;
+
+  --font-display: "Spline Sans", sans-serif;
+
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-background-light);
+    --foreground: #0f172a; /* text-slate-900 */
+  }
+
+  .dark {
+    --background: var(--color-background-dark);
+    --foreground: #f1f5f9; /* text-slate-100 */
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply font-display text-slate-900 dark:text-slate-100;
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar for webkit */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-background-dark);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #23482f;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
+
+  /* Hide scrollbar for horizontal scrolling areas but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
