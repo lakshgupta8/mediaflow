@@ -17,8 +17,20 @@ export default function Home() {
     queryFn: () => tmdbService.getTrending('movie', 'week'),
   });
 
+  const { data: trendingSeries, isLoading: isLoadingSeries } = useQuery({
+    queryKey: ['trending', 'tv', 'week'],
+    queryFn: () => tmdbService.getTrending('tv', 'week'),
+  });
+
+  const { data: topRated, isLoading: isLoadingTopRated } = useQuery({
+    queryKey: ['top_rated', 'movie'],
+    queryFn: () => tmdbService.getTopRated('movie'),
+  });
+
   const trendingItems = trendingAll?.results || [];
-  const recommendedItems = trendingMovies?.results || [];
+  const topMovies = trendingMovies?.results || [];
+  const topSeries = trendingSeries?.results || [];
+  const highestRated = topRated?.results || [];
 
   // Find a suitable hero item
   const heroItem = trendingItems.find(item => item.backdrop_path) || trendingItems[0];
@@ -28,27 +40,39 @@ export default function Home() {
       <HeroSection heroItem={heroItem} isLoading={isLoadingAll} />
 
       <div className="z-10 relative flex flex-col gap-12 -mt-10 px-8">
-        <MovieRow title="Trending Now" viewAllLink="#">
-          {isLoadingAll ? (
+        <MovieRow title="Top Trending Movies">
+          {isLoadingMovies ? (
             <div className="flex items-center space-x-4 animate-pulse">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="bg-white/10 rounded-xl w-[200px] h-[300px]" />
               ))}
             </div>
-          ) : trendingItems.map((movie) => (
-            <MovieCard key={movie.id} item={movie} />
+          ) : topMovies.map((movie) => (
+            <MovieCard key={`movie-${movie.id}`} item={movie} />
           ))}
         </MovieRow>
 
-        <MovieRow title="Top Recommendations">
-          {isLoadingMovies ? (
+        <MovieRow title="Top Trending Series">
+          {isLoadingSeries ? (
             <div className="flex items-center space-x-4 animate-pulse">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white/10 rounded-xl w-[320px] aspect-video" />
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-white/10 rounded-xl w-[200px] h-[300px]" />
               ))}
             </div>
-          ) : recommendedItems.map((movie) => (
-            <MovieCard key={movie.id} item={movie} isRec={true} />
+          ) : topSeries.map((series) => (
+            <MovieCard key={`tv-${series.id}`} item={series} />
+          ))}
+        </MovieRow>
+
+        <MovieRow title="All Time Highest Rated Movies/Series">
+          {isLoadingTopRated ? (
+            <div className="flex items-center space-x-4 animate-pulse">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-white/10 rounded-xl w-[200px] h-[300px]" />
+              ))}
+            </div>
+          ) : highestRated.map((item) => (
+            <MovieCard key={`top-${item.id}`} item={item} />
           ))}
         </MovieRow>
       </div>

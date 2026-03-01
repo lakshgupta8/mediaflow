@@ -42,6 +42,17 @@ export const tmdbService = {
     },
 
     /**
+     * Fetch top rated movies or tv shows.
+     * @param mediaType 'movie' or 'tv'
+     */
+    async getTopRated(mediaType: 'movie' | 'tv' = 'movie', page: number = 1): Promise<TMDBResponse<MediaItem>> {
+        const { data } = await tmdb.get<TMDBResponse<MediaItem>>(`/${mediaType}/top_rated`, {
+            params: { page },
+        });
+        return data;
+    },
+
+    /**
      * Search across all movies, tv shows, and people.
      */
     async searchMulti(query: string, page: number = 1): Promise<TMDBResponse<MediaItem>> {

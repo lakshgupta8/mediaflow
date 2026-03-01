@@ -40,6 +40,11 @@ export function HeroSection({ heroItem, isLoading }: HeroSectionProps) {
 
     return (
         <div className="relative w-full h-[70vh] min-h-[600px]">
+            <div className="top-8 left-1/2 z-40 absolute flex items-center gap-2 -translate-x-1/2 pointer-events-none">
+                <h1 className="font-bold text-white text-3xl tracking-wide pointer-events-auto">
+                    Media<span className="text-primary">Flow</span>
+                </h1>
+            </div>
             <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
