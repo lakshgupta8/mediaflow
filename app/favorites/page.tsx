@@ -4,7 +4,9 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { useQueries } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { MovieCard } from '@/components/MovieCard';
-import { Heart } from 'lucide-react';
+import { Heart, Search } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 export default function FavoritesPage() {
     const { favorites, isLoadingFavorites } = useSupabase();
@@ -16,9 +18,17 @@ export default function FavoritesPage() {
             queryFn: () => tmdbService.getDetails(item.media_type, item.media_id),
         })),
     });
+    const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
 
     const isLoadingDetails = results.some(r => r.isLoading);
-    const favoritesData = results.map(r => r.data).filter(Boolean);
+    const favoritesData = results
+        .map(r => r.data)
+        .filter(Boolean)
+        .filter(item => {
+            if (!searchQuery) return true;
+            const title = (item?.title || item?.name || '').toLowerCase();
+            return title.includes(searchQuery);
+        });
 
     return (
         <div className="flex flex-col gap-8 p-8 w-full">
@@ -43,9 +53,21 @@ export default function FavoritesPage() {
                 </div>
             ) : (
                 <div className="flex flex-col flex-1 justify-center items-center opacity-50 py-20 min-h-[40vh]">
-                    <Heart size={64} className="mb-4 text-slate-500" />
-                    <h2 className="font-semibold text-slate-400 text-2xl">No favorites yet</h2>
-                    <p className="mt-2 text-slate-500 text-sm">Find movies and TV shows you love and add them here</p>
+                    {searchQuery ? (
+                        <>
+                            <Search size={64} className="mb-4 text-slate-500" />
+                            <h2 className="font-semibold text-slate-400 text-2xl">No items found</h2>
+                            <p className="mt-2 text-slate-500 text-sm">
+                                No matches for &quot;{searchQuery}&quot; in your favorites.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <Heart size={64} className="mb-4 text-slate-500" />
+                            <h2 className="font-semibold text-slate-400 text-2xl">No favorites yet</h2>
+                            <p className="mt-2 text-slate-500 text-sm">Find movies and TV shows you love and add them here</p>
+                        </>
+                    )}
                 </div>
             )}
         </div>

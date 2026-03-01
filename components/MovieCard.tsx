@@ -48,7 +48,7 @@ export function MovieCard({ item, isRec }: MovieCardProps) {
         return (
             <Link href={href} className="group flex flex-col gap-3 w-[320px] min-w-[320px] snap-start cursor-pointer">
                 <div
-                    className="relative bg-cover bg-center shadow-lg rounded-xl ring-1 ring-white/10 group-hover:ring-primary aspect-video overflow-hidden transition-all duration-300"
+                    className="relative bg-cover bg-center shadow-lg border border-white/10 group-hover:border-primary rounded-xl aspect-video overflow-hidden transition-all duration-300"
                     style={{ backgroundImage: `url('${image}')` }}
                 >
                     <div className="absolute inset-0 bg-linear-to-t from-black/90 via-transparent to-transparent"></div>
@@ -88,7 +88,7 @@ export function MovieCard({ item, isRec }: MovieCardProps) {
     return (
         <Link href={href} className="group flex flex-col gap-3 w-[200px] min-w-[200px] snap-start cursor-pointer">
             <div
-                className="relative bg-cover bg-center shadow-lg group-hover:shadow-[0_0_20px_rgba(19,236,91,0.2)] rounded-xl ring-1 ring-white/10 group-hover:ring-primary aspect-2/3 overflow-hidden transition-all duration-300"
+                className="relative bg-cover bg-center shadow-lg group-hover:shadow-[0_0_20px_rgba(19,236,91,0.2)] border border-white/10 group-hover:border-primary rounded-xl aspect-2/3 overflow-hidden transition-all duration-300 transform"
                 style={{ backgroundImage: `url('${image}')` }}
             >
                 <div className="absolute inset-0 flex justify-center items-center bg-black/60 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition-opacity">

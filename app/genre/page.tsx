@@ -1,5 +1,9 @@
+"use client";
+
 import React from 'react';
-import { Film } from 'lucide-react';
+import { Film, Search } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 export default function GenrePage() {
     const genres = [
@@ -12,6 +16,12 @@ export default function GenrePage() {
         { name: "Horror", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBulQic7dLA9CD3aE8u1X7adUgQq4BpRKzJZiRRpKnQ4CJgkXKx0DlKzKgEwx6r3SM-0-zb1FUVjknxhDXlr7PicKB0FBUY4mi_4SrGv9m2p3kmOamcsJg2We9Q5fhepUTJKZWze45dixLa37clTHbDYqgjjR-1F6mIZDg6ACTRUpcdFVldN1-V5FFn5bEy2GafoUck_PfXX1_0UTFeGV1ZZjsZC8XR1OYZbUOP9d8EQ0qo1mzKDtejDMzPQcQZFlmxtgxKLx4dow" },
         { name: "Adventure", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBDgBwrXdyaPYrbJSZTaJ8XTPMwwKQyr1EvrpoUXYzG-tkomW7UWd569SSzpUYPSah3MrpPBZhDlCQ7_jVcMfKBZD4riCiFHSrmX2EiUmpfWJOXkvp3TQN_S0sJ4iUOPGUOq_TU-tmZE3k4Iak3RHtfHwJtCAGjio6HMtcPQVyeOwxIs1NwQ1TgcML3F094R46133SSXubuU2YGjye58LAovJMgeU5eLPhgJ-fZ2snrO6gaE29auOszpHDnFQ7rkiK-8-UcH4ZV0w" }
     ];
+
+    const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
+    const filteredGenres = genres.filter(genre => {
+        if (!searchQuery) return true;
+        return genre.name.toLowerCase().includes(searchQuery);
+    });
 
     return (
         <div className="flex flex-col gap-10 mx-auto mt-16 px-6 lg:px-10 py-8 pb-20 w-full max-w-[1400px]">
@@ -27,38 +37,48 @@ export default function GenrePage() {
             </div>
 
             {/* Categories Grid */}
-            <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {genres.map((genre) => (
-                    <div
-                        key={genre.name}
-                        className="group relative bg-surface-dark hover:shadow-[0_10px_40px_-10px_rgba(19,236,91,0.3)] rounded-2xl ring-1 ring-white/10 hover:ring-primary w-full aspect-video overflow-hidden transition-all hover:-translate-y-2 duration-500 cursor-pointer"
-                    >
-                        {/* Background Image */}
+            {filteredGenres.length > 0 ? (
+                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {filteredGenres.map((genre) => (
                         <div
-                            className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
-                            style={{ backgroundImage: `url('${genre.image}')` }}
-                        />
+                            key={genre.name}
+                            className="group relative bg-surface-dark hover:shadow-[0_10px_40px_-10px_rgba(19,236,91,0.3)] rounded-2xl ring-1 ring-white/10 hover:ring-primary w-full aspect-video overflow-hidden transition-all hover:-translate-y-2 duration-500 cursor-pointer"
+                        >
+                            {/* Background Image */}
+                            <div
+                                className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
+                                style={{ backgroundImage: `url('${genre.image}')` }}
+                            />
 
-                        {/* Gradient Overlay */}
-                        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
-                        {/* Content */}
-                        <div className="absolute inset-0 flex flex-col justify-end p-6">
-                            <div className="flex justify-between items-center">
-                                <h3 className="font-bold text-white group-hover:text-primary text-2xl transition-colors">
-                                    {genre.name}
-                                </h3>
-                                <div className="flex justify-center items-center bg-white/10 opacity-0 group-hover:opacity-100 backdrop-blur-md rounded-full w-10 h-10 transition-all translate-y-4 group-hover:translate-y-0 duration-300">
-                                    <Film size={20} className="text-white group-hover:text-primary" />
+                            {/* Content */}
+                            <div className="absolute inset-0 flex flex-col justify-end p-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold text-white group-hover:text-primary text-2xl transition-colors">
+                                        {genre.name}
+                                    </h3>
+                                    <div className="flex justify-center items-center bg-white/10 opacity-0 group-hover:opacity-100 backdrop-blur-md rounded-full w-10 h-10 transition-all translate-y-4 group-hover:translate-y-0 duration-300">
+                                        <Film size={20} className="text-white group-hover:text-primary" />
+                                    </div>
                                 </div>
+                                <p className="opacity-0 group-hover:opacity-100 mt-2 font-medium text-slate-400 text-sm transition-opacity duration-500 delay-100">
+                                    Explore popular {genre.name.toLowerCase()} titles ↗
+                                </p>
                             </div>
-                            <p className="opacity-0 group-hover:opacity-100 mt-2 font-medium text-slate-400 text-sm transition-opacity duration-500 delay-100">
-                                Explore popular {genre.name.toLowerCase()} titles ↗
-                            </p>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="flex flex-col flex-1 justify-center items-center opacity-50 py-20 min-h-[40vh]">
+                    <Search size={64} className="mb-4 text-slate-500" />
+                    <h2 className="font-semibold text-slate-400 text-2xl">No genres found</h2>
+                    <p className="mt-2 text-slate-500 text-sm">
+                        No matches for &quot;{searchQuery}&quot;.
+                    </p>
+                </div>
+            )}
 
         </div>
     );

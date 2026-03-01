@@ -16,7 +16,7 @@ export function Header() {
     const router = useRouter();
     const dispatch = useDispatch();
 
-    const { register, control, handleSubmit } = useForm<SearchForm>({
+    const { register, control, handleSubmit, setValue } = useForm<SearchForm>({
         defaultValues: { query: "" }
     });
 
@@ -31,10 +31,22 @@ export function Header() {
         }
     }, [query, dispatch]);
 
+    useEffect(() => {
+        if (pathname !== '/search') {
+            setValue('query', "");
+            dispatch(setSearchQuery(""));
+        }
+    }, [pathname, setValue, dispatch]);
+
     const onSubmit = (data: SearchForm) => {
         dispatch(setSearchQuery(data.query));
         if (data.query.trim()) {
-            router.push(`/search?q=${encodeURIComponent(data.query.trim())}`);
+            const localSearchPaths = ['/watchlist', '/favorites', '/recent', '/genre', '/settings'];
+            const isLocalSearch = localSearchPaths.some(path => pathname?.startsWith(path));
+
+            if (!isLocalSearch) {
+                router.push(`/search?q=${encodeURIComponent(data.query.trim())}`);
+            }
         }
     };
 

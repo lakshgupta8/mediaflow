@@ -5,9 +5,23 @@ import { User, Bell, CreditCard, LogOut } from 'lucide-react';
 import AccountSettings from '@/components/AccountSettings';
 import NotificationSettings from '@/components/NotificationSettings';
 import BillingSettings from '@/components/BillingSettings';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('account');
+
+    const tabs = [
+        { id: 'account', label: 'Account Settings', icon: User },
+        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'billing', label: 'Billing', icon: CreditCard },
+    ];
+
+    const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
+    const filteredTabs = tabs.filter(tab => {
+        if (!searchQuery) return true;
+        return tab.label.toLowerCase().includes(searchQuery);
+    });
 
     return (
         <div className="flex flex-col gap-8 mx-auto mt-16 px-6 lg:px-10 py-8 pb-20 w-full max-w-[1400px]">
@@ -26,24 +40,22 @@ export default function SettingsPage() {
 
                 {/* Settings Navigation */}
                 <div className="flex flex-col gap-2 w-full md:w-64 shrink-0">
-                    <button
-                        onClick={() => setActiveTab('account')}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'account' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:text-white hover:bg-surface-dark border border-transparent hover:border-white/5'}`}
-                    >
-                        <User size={18} /> Account Settings
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('notifications')}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'notifications' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:text-white hover:bg-surface-dark border border-transparent hover:border-white/5'}`}
-                    >
-                        <Bell size={18} /> Notifications
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('billing')}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'billing' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:text-white hover:bg-surface-dark border border-transparent hover:border-white/5'}`}
-                    >
-                        <CreditCard size={18} /> Billing
-                    </button>
+                    {filteredTabs.map(tab => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === tab.id ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:text-white hover:bg-surface-dark border border-transparent hover:border-white/5'}`}
+                            >
+                                <Icon size={18} /> {tab.label}
+                            </button>
+                        );
+                    })}
+
+                    {filteredTabs.length === 0 && (
+                        <p className="py-2 text-slate-500 text-sm">No exact settings found.</p>
+                    )}
 
                     <div className="bg-white/5 my-2 w-full h-px"></div>
 
