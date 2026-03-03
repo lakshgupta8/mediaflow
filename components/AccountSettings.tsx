@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Camera, Laptop } from 'lucide-react';
+import { Camera, Laptop, Trash2, AlertTriangle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -23,6 +24,11 @@ export default function AccountSettings() {
     const [submitError, setSubmitError] = React.useState('');
     const dispatch = useDispatch();
     const authUser = useSelector((state: RootState) => state.auth.user);
+    const router = useRouter();
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = React.useState('');
+    const [isDeleting, setIsDeleting] = React.useState(false);
+    const [deleteError, setDeleteError] = React.useState('');
 
     const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
     const [crop, setCrop] = React.useState({ x: 0, y: 0 });
@@ -236,6 +242,121 @@ export default function AccountSettings() {
                     </div>
                 </div>
             </div>
+
+            {/* Danger Zone */}
+            <div className="space-y-6 pt-6 border-white/5 border-t">
+                <div className="flex justify-between items-center pb-4 border-red-500/10 border-b">
+                    <h3 className="flex items-center gap-2 font-bold text-red-500 text-xl">
+                        <span className="bg-red-500 rounded-full w-1 h-5"></span> Danger Zone
+                    </h3>
+                </div>
+
+                <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 bg-red-500/5 p-5 border border-red-500/10 rounded-xl">
+                    <div className="flex flex-col gap-1">
+                        <span className="font-bold text-white">Delete Account</span>
+                        <span className="text-slate-400 text-sm">Permanently delete your account and all associated data. This action cannot be undone.</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 px-5 py-2.5 border border-red-500/20 hover:border-red-500/40 rounded-xl font-bold text-red-500 text-sm transition-all shrink-0"
+                    >
+                        <Trash2 size={16} /> Delete Account
+                    </button>
+                </div>
+            </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/80 p-4">
+                    <div className="flex flex-col gap-5 bg-background-dark p-6 border border-red-500/20 rounded-2xl w-full max-w-md">
+                        <div className="flex items-center gap-3">
+                            <div className="flex justify-center items-center bg-red-500/10 rounded-full w-10 h-10 shrink-0">
+                                <AlertTriangle className="text-red-500" size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-white text-lg">Delete your account?</h3>
+                                <p className="text-slate-400 text-sm">This will permanently delete all your data.</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-red-500/5 p-4 border border-red-500/10 rounded-xl">
+                            <p className="text-slate-300 text-sm leading-relaxed">
+                                All your watchlists, favorites, recently watched items, settings, and profile data will be <strong className="text-red-400">permanently erased</strong>. Your email will be freed up for a new account.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="font-bold text-slate-300 text-sm">
+                                Type <span className="text-red-400">delete my account</span> to confirm
+                            </label>
+                            <input
+                                type="text"
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="delete my account"
+                                className="bg-background-dark px-4 py-3 border border-white/5 focus:border-red-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-500 w-full font-medium text-white transition-all"
+                            />
+                        </div>
+
+                        {deleteError && (
+                            <span className="font-bold text-red-500 text-sm">{deleteError}</span>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowDeleteConfirm(false);
+                                    setDeleteConfirmText('');
+                                    setDeleteError('');
+                                }}
+                                disabled={isDeleting}
+                                className="flex-1 bg-white/10 hover:bg-white/20 disabled:opacity-50 py-3 rounded-xl font-bold text-white text-sm transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deleteConfirmText !== 'delete my account' || isDeleting}
+                                onClick={async () => {
+                                    setIsDeleting(true);
+                                    setDeleteError('');
+                                    try {
+                                        const { createClient } = await import('@/utils/supabase/client');
+                                        const supabase = createClient();
+                                        const { data: { session } } = await supabase.auth.getSession();
+
+                                        if (!session?.access_token) {
+                                            throw new Error('No active session found');
+                                        }
+
+                                        const res = await fetch('/api/delete-account', {
+                                            method: 'DELETE',
+                                            headers: {
+                                                'Authorization': `Bearer ${session.access_token}`,
+                                            },
+                                        });
+                                        if (!res.ok) {
+                                            const data = await res.json();
+                                            throw new Error(data.error || 'Failed to delete account');
+                                        }
+                                        // Sign out and redirect
+                                        await supabase.auth.signOut();
+                                        router.push('/login');
+                                    } catch (err) {
+                                        setDeleteError(err instanceof Error ? err.message : 'Something went wrong');
+                                        setIsDeleting(false);
+                                    }
+                                }}
+                                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-30 py-3 rounded-xl font-bold text-white text-sm transition-colors disabled:cursor-not-allowed"
+                            >
+                                {isDeleting ? 'Deleting...' : 'Delete Forever'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Cropping Modal */}
             {isCropping && selectedImage && (

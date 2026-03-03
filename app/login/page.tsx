@@ -41,7 +41,7 @@ export default function LoginPage() {
                 router.refresh(); // Important for Next.js App Router with Supabase
                 dispatch(login({
                     id: authData.user.id,
-                    name: authData.user.user_metadata?.name || data.email.split('@')[0],
+                    name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || data.email.split('@')[0],
                     email: authData.user.email!,
                 }));
                 router.push('/');

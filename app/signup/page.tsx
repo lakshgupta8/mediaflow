@@ -60,7 +60,7 @@ export default function SignupPage() {
                 password: data.password,
                 options: {
                     data: {
-                        name: data.name,
+                        full_name: data.name,
                     }
                 }
             });
@@ -76,7 +76,7 @@ export default function SignupPage() {
                 router.refresh();
                 dispatch(login({
                     id: authData.user.id,
-                    name: authData.user.user_metadata?.name || data.name,
+                    name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || data.name,
                     email: authData.user.email!,
                 }));
                 router.push('/');

@@ -16,7 +16,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (session?.user) {
                 dispatch(login({
                     id: session.user.id,
-                    name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || "User",
+                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || "User",
                     email: session.user.email!,
                 }));
             } else {
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (session?.user) {
                     dispatch(login({
                         id: session.user.id,
-                        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || "User",
+                        name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || "User",
                         email: session.user.email!,
                     }));
                 } else {
