@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from 'react';
-import { Play, Plus, Share2, Star, ChevronDown, MonitorPlay, Check, Loader2 } from 'lucide-react';
+import { Play, Plus, Share2, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +34,7 @@ function SeriesDetailsContent() {
         enabled: !!id,
     });
 
-    const { watchlist, addToWatchlist, removeFromWatchlist } = useSupabase();
+    const { watchlist, addToWatchlist, removeFromWatchlist, recentWatches, addToRecent, removeFromRecent } = useSupabase();
 
     // Series specific fields 
     const tvExtended = series as typeof series & TVSeriesExt;
@@ -70,12 +70,21 @@ function SeriesDetailsContent() {
     const creators = tvExtended.created_by || [];
 
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === series.id);
+    const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === series.id);
 
     const toggleWatchlist = () => {
         if (isWatchlisted) {
             removeFromWatchlist({ mediaId: series.id, mediaType: 'tv' });
         } else {
             addToWatchlist({ mediaId: series.id, mediaType: 'tv' });
+        }
+    };
+
+    const toggleWatched = () => {
+        if (isWatched) {
+            removeFromRecent({ mediaId: series.id, mediaType: 'tv' });
+        } else {
+            addToRecent({ mediaId: series.id, mediaType: 'tv', progress: 100 });
         }
     };
 
@@ -143,6 +152,13 @@ function SeriesDetailsContent() {
                             >
                                 {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
                                 {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
+                            </button>
+                            <button
+                                onClick={toggleWatched}
+                                className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatched ? 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                            >
+                                {isWatched ? <Check size={20} /> : <Eye size={20} />}
+                                {isWatched ? 'Watched It' : 'Mark as Watched'}
                             </button>
                             <button className="flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl w-12 h-12 text-slate-100 transition-all">
                                 <Share2 size={20} />

@@ -4,18 +4,61 @@ import React from 'react';
 import { Film, Search } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
+import { useQuery } from '@tanstack/react-query';
+import { tmdbService, TMDBGenre } from '@/services/tmdbService';
+import Link from 'next/link';
+import { generateGradientById } from '@/utils/helpers'; // Assuming we have or will create this
+
+function GenreCard({ genre }: { genre: TMDBGenre }) {
+    const { data: bestMovie } = useQuery({
+        queryKey: ['bestMovie', genre.id],
+        queryFn: () => tmdbService.getBestMovieForGenre(genre.id),
+        staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours
+    });
+
+    const bgImage = bestMovie?.poster_path || bestMovie?.backdrop_path
+        ? `https://image.tmdb.org/t/p/w780${bestMovie.poster_path || bestMovie.backdrop_path}`
+        : null;
+
+    return (
+        <Link
+            href={`/genre/${genre.id}?name=${encodeURIComponent(genre.name)}`}
+            className="group block relative bg-surface-dark hover:shadow-[0_10px_40px_-10px_rgba(19,236,91,0.3)] rounded-2xl ring-1 ring-white/10 hover:ring-primary w-full aspect-video overflow-hidden transition-all hover:-translate-y-2 duration-500 cursor-pointer"
+        >
+            {/* Background Image/Gradient */}
+            <div
+                className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
+                style={bgImage ? { backgroundImage: `url('${bgImage}')` } : { background: generateGradientById(genre.id) }}
+            />
+
+            {/* Gradient Overlay */}
+            <div className={`absolute inset-0 bg-linear-to-t ${bgImage ? 'from-black/95 via-black/60 to-black/10' : 'from-black/90 via-black/40 to-transparent'} opacity-80 group-hover:opacity-95 transition-opacity duration-500`} />
+
+            {/* Content */}
+            <div className="absolute inset-0 flex flex-col justify-end p-6">
+                <div className="flex justify-between items-center">
+                    <h3 className="drop-shadow-md font-bold text-white group-hover:text-primary text-2xl transition-colors">
+                        {genre.name}
+                    </h3>
+                    <div className="flex justify-center items-center bg-white/20 opacity-0 group-hover:opacity-100 backdrop-blur-md rounded-full w-10 h-10 transition-all translate-y-4 group-hover:translate-y-0 duration-300">
+                        <Film size={20} className="text-white group-hover:text-primary" />
+                    </div>
+                </div>
+                <p className={`opacity-0 group-hover:opacity-100 ${bestMovie ? 'mt-1' : 'mt-2'} font-medium text-primary/80 text-sm transition-opacity duration-500 delay-100`}>
+                    Explore {genre.name.toLowerCase()} titles ↗
+                </p>
+            </div>
+        </Link>
+    );
+}
 
 export default function GenrePage() {
-    const genres = [
-        { name: "Action", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDFcGQkUsPAgdQF8N895m6lZlqZ_sSDzePMadiTTqTwMEntcHG8t_PA-uyr69juXWbpl1Iqy5t4bHPVDYZo0E3nvn6y1Z1rZuLKYuwz6kdJFYfCAxzy1A5S8dIGcOeXR4_M0d-K_r-9F45ZNAwnmeMVEmuyThNNiT3HycvIk8haSkOzYhvaMKVDakDc1fv--gfeiNzPfHZ0HyLQ6scyEls-Rf5Rh99r1uJfpdzT-3B3b_5KcVh_29iLnsRtn2kvzUfNhIXLL9_l1Q" },
-        { name: "Sci-Fi", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCJTo66q1_p_HKc-RfCbK3kkdpsZjJ5cYHik4gQmxN-7ARihIuTH2IxYqw1BAfQwqUOOqUiPUuA8onJMo-G9Vo6SofEwz52Oq37OcfP3GvzVytQ_84HkHXOQKf_Tljq4OaroApsP_OzHuebg2TWRm6BgBKK9-Dr9kFgaSNFcO5PsOEY9awz8zPvUXPlR4kTUc3avGaBJ-f8FO10_tJUUfCAVo4KZPcU5pCZ72oUUmbKU1gaWN5pbNT6xSu3XnhnP2OzMIsBOxx31Q" },
-        { name: "Drama", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBaCCi0Py-MfgBWBA0S-NWeUtK2n-GpXuYQ2Omux0yFykCk3mb6APYMESJx6_zuuXwlqCpAEKFCSmBKbTU18875WRtfuyzJsb2PfAyzFVpdU6pcmIpIM992kPgPx8uYFykISe0aLldSITq7CGKzzvyrZwD54sR8Evgzw7B8BkwIF9Ir5F0LeMwyhUbBuLoHFhwa27BJBMBqfEG8h-vU9HqVo9ffPh2mNC9xApSpM2diavk7f9HRT4403xMzDWvRgpE6TwgF1HqD8A" },
-        { name: "Comedy", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDHAdRlGo90tB2Xnq3_60q4vzRttGBZ4z3tOO5KMp2q7NhR3a1OKcNX-SWnLqHZFGi3lfqdV_krX6g4sujB9ZE-L2w-e9E7ONVMSN6dna0YL2PKac9Igx3G5o-nEOyI5r3JGE528_HuzcG6ooFcVW0H0qBzakJynibaopu2q27fc7pGd9pwzVruS4HD4oSxaWU-UZ7HnJkUMOSnJD5Rx7RLH1KNlgeKMfgf0O3eO6KrKd_2-XRrJJjZpUj9KW1mjTRkKr4bPpczTA" },
-        { name: "Animation", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDBzgFQdQgGXHd_Rlr57hxEoTzgno1XMZ3xppJH56KJCTT9rIrj2RyKxAM-8yYgtDuS0ovQp267VFL6_zB3doTjWgvAWKTBkgyiET-DowFAx_Qq47hfm1q0fA03GECrrHDfeolrKfRpdQmrgELAC0wi3XL2grhuYx7WDxxbmuVQyFf9e9S4psqxQI9d_LIvGuwrCbouUvyuA5FABpAB5BsYb_meaeZEHYJIh3zahLsct6GeFcXjOgm-bwJXzSaeFjaR0_7SUF1tBA" },
-        { name: "Thriller", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuB3gBN4UJZ1vNGijFaS_MvBK0anyKN2zTvE2QGW86OkgtcggSJJ18nSSkkpXhJM_ZCGXqxeHM9TajUv3kBGsmyJP6qiIsh8tuBcaiGmFdQghJosk32LNByEZR__bQSYdE6L5w7tufVkwxZ7klxpQOBSaRm1v8kbNZ6QhWhv3Hn4Lq3xX4cpfP8CfRKm53Cp1o9Rb1DFJVdiTp74V4dhE7ZwZYSH2uehwW1cqAyWG69NmlxmUfX58CN6MvBCtOcnp_QMWUJUT6oU9Q" },
-        { name: "Horror", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBulQic7dLA9CD3aE8u1X7adUgQq4BpRKzJZiRRpKnQ4CJgkXKx0DlKzKgEwx6r3SM-0-zb1FUVjknxhDXlr7PicKB0FBUY4mi_4SrGv9m2p3kmOamcsJg2We9Q5fhepUTJKZWze45dixLa37clTHbDYqgjjR-1F6mIZDg6ACTRUpcdFVldN1-V5FFn5bEy2GafoUck_PfXX1_0UTFeGV1ZZjsZC8XR1OYZbUOP9d8EQ0qo1mzKDtejDMzPQcQZFlmxtgxKLx4dow" },
-        { name: "Adventure", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBDgBwrXdyaPYrbJSZTaJ8XTPMwwKQyr1EvrpoUXYzG-tkomW7UWd569SSzpUYPSah3MrpPBZhDlCQ7_jVcMfKBZD4riCiFHSrmX2EiUmpfWJOXkvp3TQN_S0sJ4iUOPGUOq_TU-tmZE3k4Iak3RHtfHwJtCAGjio6HMtcPQVyeOwxIs1NwQ1TgcML3F094R46133SSXubuU2YGjye58LAovJMgeU5eLPhgJ-fZ2snrO6gaE29auOszpHDnFQ7rkiK-8-UcH4ZV0w" }
-    ];
+    const { data: genreData, isLoading } = useQuery({
+        queryKey: ['genres', 'movie'],
+        queryFn: () => tmdbService.getGenres('movie'),
+    });
+
+    const genres = genreData?.genres || [];
 
     const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
     const filteredGenres = genres.filter(genre => {
@@ -37,37 +80,16 @@ export default function GenrePage() {
             </div>
 
             {/* Categories Grid */}
-            {filteredGenres.length > 0 ? (
+            {isLoading ? (
+                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="bg-white/10 rounded-2xl w-full aspect-video" />
+                    ))}
+                </div>
+            ) : filteredGenres.length > 0 ? (
                 <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredGenres.map((genre) => (
-                        <div
-                            key={genre.name}
-                            className="group relative bg-surface-dark hover:shadow-[0_10px_40px_-10px_rgba(19,236,91,0.3)] rounded-2xl ring-1 ring-white/10 hover:ring-primary w-full aspect-video overflow-hidden transition-all hover:-translate-y-2 duration-500 cursor-pointer"
-                        >
-                            {/* Background Image */}
-                            <div
-                                className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
-                                style={{ backgroundImage: `url('${genre.image}')` }}
-                            />
-
-                            {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-
-                            {/* Content */}
-                            <div className="absolute inset-0 flex flex-col justify-end p-6">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="font-bold text-white group-hover:text-primary text-2xl transition-colors">
-                                        {genre.name}
-                                    </h3>
-                                    <div className="flex justify-center items-center bg-white/10 opacity-0 group-hover:opacity-100 backdrop-blur-md rounded-full w-10 h-10 transition-all translate-y-4 group-hover:translate-y-0 duration-300">
-                                        <Film size={20} className="text-white group-hover:text-primary" />
-                                    </div>
-                                </div>
-                                <p className="opacity-0 group-hover:opacity-100 mt-2 font-medium text-slate-400 text-sm transition-opacity duration-500 delay-100">
-                                    Explore popular {genre.name.toLowerCase()} titles ↗
-                                </p>
-                            </div>
-                        </div>
+                        <GenreCard key={genre.id} genre={genre} />
                     ))}
                 </div>
             ) : (

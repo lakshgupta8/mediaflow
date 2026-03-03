@@ -5,9 +5,12 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Home, Search, Bookmark, Film, History, Heart, Settings } from "lucide-react";
 import { Tooltip } from "./Tooltip";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 export function Sidebar() {
     const pathname = usePathname();
+    const user = useSelector((state: RootState) => state.auth.user);
 
     if (pathname === '/login' || pathname === '/signup') return null;
 
@@ -99,19 +102,28 @@ export function Sidebar() {
                         <Settings className="transition-transform shrink-0" />
                     </Link>
                 </Tooltip>
-                <Tooltip content="Neo Anderson">
-                    <div
-                        className="flex justify-center items-center gap-3 bg-white/5 px-0 py-2 border border-white/5 hover:border-primary/30 rounded-xl w-12 h-12 transition-colors cursor-pointer"
-                    >
-                        <div
-                            className="bg-cover bg-center rounded-full ring-2 ring-transparent w-8 md:w-10 h-8 md:h-10 text-slate-400 transition-all shrink-0"
-                            style={{
-                                backgroundImage:
-                                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQuohTGr6p1ynAQrfWXMBQ6zMRlNccZBXrwgOyYTNQ2nW271Yx4y9Fx2bk4Qe_5OWQCSoAk2Yu2kDzUt1HVa6W2c35j1tZIRHVKbjq84Nfk2tiTTDz0rX7fbPKDdpnT84Dx4V4Iztn-XzGxnsCJ1XBAHl-K5942w0WA1TTHzRpyX-FmKYxebkuvXGyn6deR4pGfYeTLGwXJbXuSANgwPAF-gUDQbrK5oPMmJtqYqGQgjAWj0MLT3icHqwmZLJS7U32DuKxxACNdQ')",
+                <div className="group/profile relative w-full">
+                    <Tooltip content={user?.name ? `Logout ${user.name}` : "Logout"}>
+                        <button
+                            onClick={async () => {
+                                const { createClient } = await import('@/utils/supabase/client');
+                                const supabase = createClient();
+                                await supabase.auth.signOut();
+                                // AuthProvider handles Redux logout and redirect if needed automatically via onAuthStateChange
                             }}
-                        ></div>
-                    </div>
-                </Tooltip>
+                            className="flex justify-center items-center gap-3 bg-white/5 hover:bg-red-500/10 px-0 py-2 border border-white/5 hover:border-red-500/30 rounded-xl w-full h-12 transition-colors cursor-pointer"
+                        >
+                            <div className="flex justify-center items-center bg-primary/10 group-hover/profile:bg-red-500/20 rounded-full w-8 md:w-10 h-8 md:h-10 text-primary group-hover/profile:text-red-500 transition-all shrink-0">
+                                <span className="group-hover/profile:hidden font-bold text-sm md:text-base uppercase">
+                                    {user?.name?.charAt(0) || "U"}
+                                </span>
+                                <span className="hidden group-hover/profile:block">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                </span>
+                            </div>
+                        </button>
+                    </Tooltip>
+                </div>
             </div>
         </aside>
     );

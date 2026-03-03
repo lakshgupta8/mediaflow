@@ -7,6 +7,11 @@ export interface TMDBResponse<T> {
     total_results: number;
 }
 
+export interface TMDBGenre {
+    id: number;
+    name: string;
+}
+
 export interface MediaItem {
     id: number;
     title?: string;
@@ -20,7 +25,7 @@ export interface MediaItem {
     first_air_date?: string;
     // Detail-specific fields:
     runtime?: number;
-    genres?: Array<{ id: number; name: string }>;
+    genres?: TMDBGenre[];
     status?: string;
     budget?: number;
     revenue?: number;
@@ -78,5 +83,43 @@ export const tmdbService = {
     async getTvSeason(seriesId: number, seasonNumber: number): Promise<Record<string, unknown>> {
         const { data } = await tmdb.get(`/tv/${seriesId}/season/${seasonNumber}`);
         return data;
+    },
+
+    /**
+     * Get official genre list for movies or tv shows.
+     */
+    async getGenres(mediaType: 'movie' | 'tv' = 'movie'): Promise<{ genres: TMDBGenre[] }> {
+        const { data } = await tmdb.get<{ genres: TMDBGenre[] }>(`/genre/${mediaType}/list`);
+        return data;
+    },
+
+    /**
+     * Discover movies or tv shows by genre ID.
+     */
+    async discoverByGenre(mediaType: 'movie' | 'tv', genreId: number, page: number = 1): Promise<TMDBResponse<MediaItem>> {
+        const { data } = await tmdb.get<TMDBResponse<MediaItem>>(`/discover/${mediaType}`, {
+            params: {
+                with_genres: genreId,
+                page,
+                sort_by: 'popularity.desc'
+            }
+        });
+        return data;
+    },
+
+    /**
+     * Get the best rated movie for a specific genre, to be used as a cover/poster.
+     * We require a minimum number of votes so we don't get obscure 10/10 movies.
+     */
+    async getBestMovieForGenre(genreId: number): Promise<MediaItem | null> {
+        const { data } = await tmdb.get<TMDBResponse<MediaItem>>('/discover/movie', {
+            params: {
+                with_genres: genreId,
+                sort_by: 'vote_average.desc',
+                'vote_count.gte': 2000,
+                page: 1
+            }
+        });
+        return data.results[0] || null;
     }
 };

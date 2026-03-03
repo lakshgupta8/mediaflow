@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth';
 import { useDispatch } from 'react-redux';
 import { login } from '@/store/features/authSlice';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { useState } from 'react';
 
 export default function LoginPage() {
@@ -28,6 +28,7 @@ export default function LoginPage() {
     const onSubmit = async (data: LoginFormData) => {
         setAuthError('');
         try {
+            const supabase = createClient();
             const { data: authData, error } = await supabase.auth.signInWithPassword({
                 email: data.email,
                 password: data.password,
@@ -36,6 +37,8 @@ export default function LoginPage() {
             if (error) throw error;
 
             if (authData.user) {
+                // Ensure the session cookie is set and accessible before redirecting
+                router.refresh(); // Important for Next.js App Router with Supabase
                 dispatch(login({
                     id: authData.user.id,
                     name: authData.user.user_metadata?.name || data.email.split('@')[0],
