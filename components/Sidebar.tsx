@@ -102,28 +102,18 @@ export function Sidebar() {
                         <Settings className="transition-transform shrink-0" />
                     </Link>
                 </Tooltip>
-                <div className="group/profile relative w-full">
-                    <Tooltip content={user?.name ? `Logout ${user.name}` : "Logout"}>
-                        <button
-                            onClick={async () => {
-                                const { createClient } = await import('@/utils/supabase/client');
-                                const supabase = createClient();
-                                await supabase.auth.signOut();
-                                // AuthProvider handles Redux logout and redirect if needed automatically via onAuthStateChange
-                            }}
-                            className="flex justify-center items-center gap-3 bg-white/5 hover:bg-red-500/10 px-0 py-2 border border-white/5 hover:border-red-500/30 rounded-xl w-full h-12 transition-colors cursor-pointer"
-                        >
-                            <div className="flex justify-center items-center bg-primary/10 group-hover/profile:bg-red-500/20 rounded-full w-8 md:w-10 h-8 md:h-10 text-primary group-hover/profile:text-red-500 transition-all shrink-0">
-                                <span className="group-hover/profile:hidden font-bold text-sm md:text-base uppercase">
-                                    {user?.name?.charAt(0) || "U"}
-                                </span>
-                                <span className="hidden group-hover/profile:block">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                                </span>
-                            </div>
-                        </button>
-                    </Tooltip>
-                </div>
+                <Tooltip content={user?.name || "Profile"}>
+                    <Link
+                        href="/settings"
+                        className="flex justify-center items-center bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl w-full h-12 transition-colors"
+                    >
+                        <div className="flex justify-center items-center bg-primary/10 rounded-full w-8 md:w-10 h-8 md:h-10 text-primary shrink-0">
+                            <span className="font-bold text-sm md:text-base uppercase">
+                                {user?.name?.charAt(0) || "U"}
+                            </span>
+                        </div>
+                    </Link>
+                </Tooltip>
             </div>
         </aside>
     );
