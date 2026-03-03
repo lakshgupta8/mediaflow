@@ -3,29 +3,56 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Film, User, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Film, User, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupFormData } from '@/lib/validations/auth';
 import { useDispatch } from 'react-redux';
 import { login } from '@/store/features/authSlice';
 import { createClient } from '@/utils/supabase/client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export default function SignupPage() {
     const router = useRouter();
     const dispatch = useDispatch();
     const [authError, setAuthError] = useState('');
+    const [emailExists, setEmailExists] = useState(false);
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
     const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
+        watch,
     } = useForm<SignupFormData>({
         resolver: zodResolver(signupSchema),
     });
 
+    // Debounced email check on blur
+    const checkEmailExists = useCallback(async (email: string) => {
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setEmailExists(false);
+            return;
+        }
+
+        setIsCheckingEmail(true);
+        try {
+            const res = await fetch('/api/check-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim().toLowerCase() }),
+            });
+            const data = await res.json();
+            setEmailExists(data.exists);
+        } catch {
+            setEmailExists(false);
+        } finally {
+            setIsCheckingEmail(false);
+        }
+    }, []);
+
     const onSubmit = async (data: SignupFormData) => {
+        if (emailExists) return; // Block form submission if email exists
         setAuthError('');
         try {
             const supabase = createClient();
@@ -42,8 +69,13 @@ export default function SignupPage() {
             if (error) throw error;
 
             if (authData.user) {
-                // Ensure the session cookie is set and accessible before redirecting
-                router.refresh(); // Important for Next.js App Router with Supabase
+                // If the user already exists, Supabase may return a fake user with empty identities
+                if (authData.user.identities && authData.user.identities.length === 0) {
+                    setEmailExists(true);
+                    return;
+                }
+
+                router.refresh();
                 dispatch(login({
                     id: authData.user.id,
                     name: authData.user.user_metadata?.name || data.name,
@@ -53,9 +85,8 @@ export default function SignupPage() {
             }
         } catch (error) {
             if (error instanceof Error) {
-                // Supabase error handling for existing users
                 if (error.message.includes('User already registered')) {
-                    setAuthError('An account with this email already exists.');
+                    setEmailExists(true);
                 } else {
                     setAuthError(error.message);
                 }
@@ -64,6 +95,8 @@ export default function SignupPage() {
             }
         }
     };
+
+    const emailValue = watch('email');
 
     return (
         <div className="flex flex-col bg-background-light dark:bg-background-dark w-full min-h-screen font-display antialiased">
@@ -119,6 +152,27 @@ export default function SignupPage() {
                             </button>
                         </div>
 
+                        {/* Email Exists Warning Banner */}
+                        {emailExists && (
+                            <div className="flex flex-col gap-3 bg-amber-500/10 slide-in-from-top-2 p-5 border border-amber-500/30 rounded-2xl animate-in duration-300 fade-in">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle size={18} className="text-amber-500 shrink-0" />
+                                    <span className="font-bold text-amber-500 text-sm">An account with this email already exists.</span>
+                                </div>
+                                <p className="ml-[26px] text-slate-400 text-sm">
+                                    Please log in with your existing account or use a different email address.
+                                </p>
+                                <div className="flex items-center gap-4 ml-[26px]">
+                                    <Link href="/login" className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg font-bold text-primary text-sm transition-colors">
+                                        Log In Instead <ArrowRight size={14} />
+                                    </Link>
+                                    <Link href="/forgot-password" className="font-medium text-slate-400 hover:text-slate-300 text-sm hover:underline transition-colors">
+                                        Forgot Password?
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Signup Form */}
                         <form className="flex flex-col gap-6" onSubmit={handleSubmit(onSubmit)}>
 
@@ -152,16 +206,28 @@ export default function SignupPage() {
                                         type="email"
                                         placeholder="name@example.com"
                                         {...register('email')}
-                                        className={`bg-white dark:bg-surface-dark pr-4 pl-12 border-2 ${errors.email ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300`}
+                                        onBlur={(e) => {
+                                            setEmailExists(false);
+                                            checkEmailExists(e.target.value);
+                                        }}
+                                        className={`bg-white dark:bg-surface-dark pr-12 pl-12 border-2 ${emailExists ? 'border-amber-500 focus:ring-amber-500/10' : errors.email ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base transition-all duration-300`}
                                     />
+                                    {isCheckingEmail && (
+                                        <div className="top-1/2 right-4 absolute -translate-y-1/2">
+                                            <Loader2 size={18} className="text-slate-400 animate-spin" />
+                                        </div>
+                                    )}
                                 </div>
-                                {errors.email && (
+                                {errors.email && !emailExists && (
                                     <span className="ml-1 font-medium text-red-500 text-sm">{errors.email.message}</span>
+                                )}
+                                {emailExists && (
+                                    <span className="ml-1 font-medium text-amber-500 text-sm">This email is already registered.</span>
                                 )}
                             </div>
 
                             {/* Password Input */}
-                            <div className="flex flex-col gap-2.5">
+                            <div className={`flex flex-col gap-2.5 transition-opacity duration-300 ${emailExists ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <label className="ml-1 font-bold text-slate-700 dark:text-slate-300 text-sm">Password</label>
                                 <div className="group relative">
                                     <div className="top-1/2 left-4 absolute text-slate-400 group-focus-within:text-primary transition-colors -translate-y-1/2">
@@ -170,6 +236,7 @@ export default function SignupPage() {
                                     <input
                                         type="password"
                                         placeholder="••••••••"
+                                        disabled={emailExists}
                                         {...register('password')}
                                         className={`bg-white dark:bg-surface-dark pr-12 pl-12 border-2 ${errors.password ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300`}
                                     />
@@ -180,7 +247,7 @@ export default function SignupPage() {
                             </div>
 
                             {/* Confirm Password Input */}
-                            <div className="flex flex-col gap-2.5">
+                            <div className={`flex flex-col gap-2.5 transition-opacity duration-300 ${emailExists ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <label className="ml-1 font-bold text-slate-700 dark:text-slate-300 text-sm">Confirm Password</label>
                                 <div className="group relative">
                                     <div className="top-1/2 left-4 absolute text-slate-400 group-focus-within:text-primary transition-colors -translate-y-1/2">
@@ -189,6 +256,7 @@ export default function SignupPage() {
                                     <input
                                         type="password"
                                         placeholder="••••••••"
+                                        disabled={emailExists}
                                         {...register('confirmPassword')}
                                         className={`bg-white dark:bg-surface-dark pr-12 pl-12 border-2 ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-primary dark:border-white/5 focus:ring-primary/10'} rounded-2xl focus:outline-none focus:ring-4 w-full h-14 text-slate-900 dark:placeholder:text-slate-600 dark:text-white placeholder:text-slate-400 text-base tracking-widest transition-all duration-300`}
                                     />
@@ -198,27 +266,21 @@ export default function SignupPage() {
                                 )}
                             </div>
 
-                            {/* Error Details */}
+                            {/* General Auth Error */}
                             {authError && (
-                                <div className="flex flex-col gap-2 bg-red-500/10 p-4 border border-red-500/20 rounded-xl">
+                                <div className="bg-red-500/10 p-4 border border-red-500/20 rounded-xl">
                                     <span className="font-bold text-red-500 text-sm">{authError}</span>
-                                    {authError.includes('already exists') && (
-                                        <div className="flex justify-between items-center mt-1">
-                                            <Link href="/login" className="flex items-center gap-1 font-semibold text-primary text-sm hover:underline">
-                                                Log In Instead <ArrowRight size={14} />
-                                            </Link>
-                                            <Link href="/forgot-password" className="font-medium text-slate-400 hover:text-slate-300 text-sm hover:underline">
-                                                Forgot Password?
-                                            </Link>
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
                             {/* Submit Button */}
-                            <button disabled={isSubmitting} type="submit" className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-70 hover:shadow-primary/20 hover:shadow-xl mt-2 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
-                                <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
-                                {!isSubmitting && <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />}
+                            <button
+                                disabled={isSubmitting || emailExists}
+                                type="submit"
+                                className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-50 hover:shadow-primary/20 hover:shadow-xl mt-2 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 disabled:hover:translate-y-0 duration-300 disabled:cursor-not-allowed transform"
+                            >
+                                <span>{isSubmitting ? 'Creating Account...' : emailExists ? 'Email Already Taken' : 'Create Account'}</span>
+                                {!isSubmitting && !emailExists && <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />}
                             </button>
                         </form>
 
