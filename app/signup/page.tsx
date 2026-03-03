@@ -53,7 +53,12 @@ export default function SignupPage() {
             }
         } catch (error) {
             if (error instanceof Error) {
-                setAuthError(error.message);
+                // Supabase error handling for existing users
+                if (error.message.includes('User already registered')) {
+                    setAuthError('An account with this email already exists.');
+                } else {
+                    setAuthError(error.message);
+                }
             } else {
                 setAuthError(String(error));
             }
@@ -193,13 +198,25 @@ export default function SignupPage() {
                                 )}
                             </div>
 
-                            {/* Submit Button */}
+                            {/* Error Details */}
                             {authError && (
-                                <div className="bg-red-500/10 p-3 border border-red-500/20 rounded-xl text-red-500 text-sm italic">
-                                    {authError}
+                                <div className="flex flex-col gap-2 bg-red-500/10 p-4 border border-red-500/20 rounded-xl">
+                                    <span className="font-bold text-red-500 text-sm">{authError}</span>
+                                    {authError.includes('already exists') && (
+                                        <div className="flex justify-between items-center mt-1">
+                                            <Link href="/login" className="flex items-center gap-1 font-semibold text-primary text-sm hover:underline">
+                                                Log In Instead <ArrowRight size={14} />
+                                            </Link>
+                                            <Link href="/forgot-password" className="font-medium text-slate-400 hover:text-slate-300 text-sm hover:underline">
+                                                Forgot Password?
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                            <button disabled={isSubmitting} type="submit" className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-70 hover:shadow-primary/20 hover:shadow-xl mt-4 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
+
+                            {/* Submit Button */}
+                            <button disabled={isSubmitting} type="submit" className="group flex justify-center items-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-70 hover:shadow-primary/20 hover:shadow-xl mt-2 rounded-2xl w-full h-14 font-black text-background-dark text-lg transition-all hover:-translate-y-1 duration-300 transform">
                                 <span>{isSubmitting ? 'Creating Account...' : 'Create Account'}</span>
                                 {!isSubmitting && <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />}
                             </button>

@@ -59,7 +59,14 @@ export default function SettingsPage() {
 
                         <div className="bg-white/5 my-2 w-full h-px"></div>
 
-                        <button className="flex items-center gap-3 hover:bg-red-500/10 px-4 py-3 rounded-xl w-full font-semibold text-red-500 transition-colors">
+                        <button
+                            onClick={async () => {
+                                const { createClient } = await import('@/utils/supabase/client');
+                                const supabase = createClient();
+                                await supabase.auth.signOut();
+                            }}
+                            className="flex items-center gap-3 hover:bg-red-500/10 px-4 py-3 rounded-xl w-full font-semibold text-red-500 transition-colors"
+                        >
                             <LogOut size={18} /> Log Out
                         </button>
                     </div>

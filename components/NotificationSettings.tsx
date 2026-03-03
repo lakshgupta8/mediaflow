@@ -3,17 +3,17 @@ import { useSupabase } from '@/hooks/useSupabase';
 
 export default function NotificationSettings() {
     const { userSettings, updateSettings, isUpdatingSettings, isLoadingSettings } = useSupabase();
-    const [emailEnabled, setEmailEnabled] = useState(userSettings?.email_notifications ?? true);
-    const [prevUserSettings, setPrevUserSettings] = useState(userSettings);
+
+    // Default to true if userSettings is loading or null
+    const baseEmailEnabled = userSettings ? userSettings.email_notifications : true;
+    const [localEmailEnabled, setLocalEmailEnabled] = useState<boolean | null>(null);
+
+    // Derived state determining the actual switch status
+    // If local state is null, we use the server's state
+    const emailEnabled = localEmailEnabled !== null ? localEmailEnabled : baseEmailEnabled;
+
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [submitError, setSubmitError] = useState('');
-
-    if (userSettings !== prevUserSettings) {
-        setPrevUserSettings(userSettings);
-        if (userSettings) {
-            setEmailEnabled(userSettings.email_notifications ?? true);
-        }
-    }
 
     const handleSave = async () => {
         setSubmitError('');
@@ -55,7 +55,7 @@ export default function NotificationSettings() {
                             <input
                                 type="checkbox"
                                 checked={emailEnabled}
-                                onChange={(e) => setEmailEnabled(e.target.checked)}
+                                onChange={(e) => setLocalEmailEnabled(e.target.checked)}
                                 className="sr-only peer"
                             />
                             <div className="peer after:top-[2px] after:left-[2px] after:absolute bg-white/10 after:bg-white peer-checked:bg-primary after:border after:border-gray-300 peer-checked:after:border-white rounded-full after:rounded-full peer-focus:outline-none w-11 after:w-5 h-6 after:h-5 after:content-[''] transition-colors after:transition-all peer-checked:after:translate-x-full"></div>
