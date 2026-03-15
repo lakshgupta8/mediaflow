@@ -9,6 +9,7 @@ import { tmdbService } from '@/services/tmdbService';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
+import { ReviewSection } from '@/components/ReviewSection';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -556,6 +557,9 @@ function SeriesDetailsContent() {
                             </motion.div>
                         )}
                     </section>
+
+                    {/* User Reviews */}
+                    <ReviewSection mediaId={id} mediaType="tv" />
                 </div>
 
                 {/* Sidebar (4 cols) */}

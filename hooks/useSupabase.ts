@@ -47,6 +47,13 @@ export function useSupabase() {
         enabled: !!userId,
     });
 
+    // Fetch User Reviews
+    const { data: userReviews, isLoading: isLoadingUserReviews } = useQuery({
+        queryKey: ['userReviews', userId],
+        queryFn: () => supabaseService.getUserReviews(userId as string),
+        enabled: !!userId,
+    });
+
     const handleUnauthenticated = () => {
         router.push('/login');
         throw new Error("Must be logged in to perform this action");
@@ -166,6 +173,30 @@ export function useSupabase() {
         }
     });
 
+    // Add Review Mutation
+    const addReviewMutation = useMutation({
+        mutationFn: async ({ mediaId, mediaType, content, parentId }: { mediaId: number; mediaType: 'movie' | 'tv'; content: string; parentId?: string }) => {
+            if (!userId) return handleUnauthenticated();
+            return supabaseService.addReview({ user_id: userId, media_id: mediaId, media_type: mediaType, content, parent_id: parentId || null });
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['reviews', variables.mediaId, variables.mediaType] });
+            queryClient.invalidateQueries({ queryKey: ['userReviews', userId] });
+        }
+    });
+
+    // Delete Review Mutation
+    const deleteReviewMutation = useMutation({
+        mutationFn: async (reviewId: string) => {
+            if (!userId) return handleUnauthenticated();
+            return supabaseService.deleteReview(reviewId, userId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reviews'] });
+            queryClient.invalidateQueries({ queryKey: ['userReviews', userId] });
+        }
+    });
+
     return {
         // Data
         watchlist: watchlist || [],
@@ -173,11 +204,13 @@ export function useSupabase() {
         recentWatches: recentWatches || [],
         userProfile,
         userSettings,
+        userReviews: userReviews || [],
         isLoadingWatchlist,
         isLoadingFavorites,
         isLoadingRecent,
         isLoadingProfile,
         isLoadingSettings,
+        isLoadingUserReviews,
 
         // Mutations
         addToWatchlist: addToWatchlistMutation.mutate,
@@ -189,6 +222,8 @@ export function useSupabase() {
         updateProfile: updateProfileMutation.mutateAsync,
         uploadAvatar: uploadAvatarMutation.mutateAsync,
         updateSettings: updateSettingsMutation.mutateAsync,
+        addReview: addReviewMutation.mutateAsync,
+        deleteReview: deleteReviewMutation.mutateAsync,
 
         // Status
         isAddingToWatchlist: addToWatchlistMutation.isPending,
@@ -197,5 +232,7 @@ export function useSupabase() {
         isUpdatingProfile: updateProfileMutation.isPending,
         isUploadingAvatar: uploadAvatarMutation.isPending,
         isUpdatingSettings: updateSettingsMutation.isPending,
+        isAddingReview: addReviewMutation.isPending,
+        isDeletingReview: deleteReviewMutation.isPending,
     };
 }

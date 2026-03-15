@@ -8,6 +8,20 @@ export interface WatchlistItem {
     added_at?: string;
 }
 
+export interface Review {
+    id: string;
+    user_id: string;
+    media_id: number;
+    media_type: 'movie' | 'tv';
+    content: string;
+    parent_id: string | null;
+    created_at: string;
+    user?: {
+        full_name: string;
+        avatar_url: string | null;
+    };
+}
+
 export const supabaseService = {
 
     // --- Watchlist ---
@@ -211,5 +225,65 @@ export const supabaseService = {
 
         if (error) throw error;
         return data;
+    },
+
+    // --- Reviews ---
+    async addReview(review: Omit<Review, 'id' | 'created_at' | 'user'>) {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from('reviews')
+            .insert([{
+                user_id: review.user_id,
+                media_id: review.media_id,
+                media_type: review.media_type,
+                content: review.content,
+                parent_id: review.parent_id || null
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Review;
+    },
+
+    async getReviewsForMedia(mediaId: number, mediaType: 'movie' | 'tv') {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from('reviews')
+            .select(`
+                *,
+                user:users (
+                    full_name,
+                    avatar_url
+                )
+            `)
+            .match({ media_id: mediaId, media_type: mediaType })
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data as Review[];
+    },
+
+    async getUserReviews(userId: string) {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from('reviews')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data as Review[];
+    },
+
+    async deleteReview(reviewId: string, userId: string) {
+        const supabase = createClient();
+        const { error } = await supabase
+            .from('reviews')
+            .delete()
+            .match({ id: reviewId, user_id: userId });
+
+        if (error) throw error;
+        return true;
     }
 };

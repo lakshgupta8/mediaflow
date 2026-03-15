@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
-import { Camera, Trash2, AlertTriangle } from 'lucide-react';
+import { Camera, Trash2, AlertTriangle, MessageSquare, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/hooks/useSupabase';
+import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
+import { ConfirmationModal } from './ConfirmationModal';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +22,7 @@ const accountSchema = z.object({
 type AccountFormData = z.infer<typeof accountSchema>;
 
 export default function AccountSettings() {
-    const { userProfile, updateProfile, isUpdatingProfile, isLoadingProfile, uploadAvatar, isUploadingAvatar } = useSupabase();
+    const { userProfile, updateProfile, isUpdatingProfile, isLoadingProfile, uploadAvatar, isUploadingAvatar, userReviews, deleteReview } = useSupabase();
     const [submitSuccess, setSubmitSuccess] = React.useState(false);
     const [submitError, setSubmitError] = React.useState('');
     const dispatch = useDispatch();
@@ -29,6 +32,8 @@ export default function AccountSettings() {
     const [deleteConfirmText, setDeleteConfirmText] = React.useState('');
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [deleteError, setDeleteError] = React.useState('');
+    const [isDeleteReviewModalOpen, setIsDeleteReviewModalOpen] = React.useState(false);
+    const [reviewIdToDelete, setReviewIdToDelete] = React.useState<string | null>(null);
 
     const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
     const [crop, setCrop] = React.useState({ x: 0, y: 0 });
@@ -218,6 +223,70 @@ export default function AccountSettings() {
                 </div>
             </form>
 
+            {/* My Reviews Section */}
+            <div className="space-y-6 pt-6 border-white/5 border-t">
+                <div className="flex justify-between items-center pb-4 border-white/5 border-b">
+                    <h3 className="flex items-center gap-2 font-bold text-white text-xl">
+                        <span className="bg-primary rounded-full w-1 h-5"></span> My Reviews
+                    </h3>
+                </div>
+
+                <div className="space-y-4">
+                    {userReviews && userReviews.length > 0 ? (
+                        userReviews.map((review) => (
+                            <div 
+                                key={review.id} 
+                                className="bg-white/5 border border-white/5 hover:border-white/10 p-5 rounded-xl transition-all group"
+                            >
+                                <div className="flex justify-between items-start gap-4">
+                                    <div className="flex flex-col gap-1 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-white/10 px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                {review.media_type === 'movie' ? 'Movie' : 'TV Show'}
+                                            </span>
+                                            {review.parent_id && (
+                                                <span className="bg-primary/10 px-2 py-0.5 rounded-md text-[10px] font-bold text-primary uppercase tracking-wider">
+                                                    Reply
+                                                </span>
+                                            )}
+                                            <span className="text-slate-500 text-xs text-center">•</span>
+                                            <span className="text-slate-500 text-xs">
+                                                {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-200 text-sm mt-1">{review.content}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Link 
+                                            href={`/${review.media_type === 'tv' ? 'series' : 'movie'}/${review.media_id}`}
+                                            className="text-slate-500 hover:text-primary p-2 rounded-lg hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100"
+                                            title="View Media"
+                                        >
+                                            <ExternalLink size={16} />
+                                        </Link>
+                                        <button 
+                                            onClick={() => {
+                                                setReviewIdToDelete(review.id);
+                                                setIsDeleteReviewModalOpen(true);
+                                            }}
+                                            className="text-slate-500 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                                            title="Delete Review"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl">
+                            <MessageSquare className="mx-auto mb-3 text-slate-600" size={32} />
+                            <p className="text-slate-400 text-sm">You haven&apos;t posted any reviews yet.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Danger Zone */}
             <div className="space-y-6 pt-6 border-white/5 border-t">
                 <div className="flex justify-between items-center pb-4 border-red-500/10 border-b">
@@ -386,6 +455,24 @@ export default function AccountSettings() {
                 </div>
             )}
 
+            <ConfirmationModal
+                isOpen={isDeleteReviewModalOpen}
+                onClose={() => setIsDeleteReviewModalOpen(false)}
+                onConfirm={async () => {
+                    if (reviewIdToDelete) {
+                        try {
+                            await deleteReview(reviewIdToDelete);
+                            setReviewIdToDelete(null);
+                        } catch (error) {
+                            console.error('Failed to delete review:', error);
+                        }
+                    }
+                }}
+                title="Delete Review"
+                message="Are you sure you want to delete this review? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive={true}
+            />
         </div>
     );
 }
