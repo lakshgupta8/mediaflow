@@ -10,6 +10,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { ReviewSection } from '@/components/ReviewSection';
+import Link from 'next/link';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -573,7 +574,7 @@ function SeriesDetailsContent() {
                             </h3>
                             <div className="space-y-5 pt-2">
                                 {cast.map((person) => (
-                                    <div key={person.id} className="group flex items-center gap-4 cursor-pointer">
+                                    <Link key={person.id} href={`/people/${person.id}`} className="group flex items-center gap-4 cursor-pointer">
                                         <div className="rounded-full ring-2 ring-transparent group-hover:ring-primary w-12 h-12 overflow-hidden transition-colors">
                                             <div className="bg-cover bg-center w-full h-full" style={{ backgroundImage: `url('${person.profile_path ? TMDB_PROFILE_BASE + person.profile_path : ''}')` }} />
                                         </div>
@@ -581,7 +582,7 @@ function SeriesDetailsContent() {
                                             <p className="font-semibold text-slate-100 group-hover:text-primary text-sm transition-colors">{person.name}</p>
                                             <p className="mt-0.5 text-slate-500 text-xs">{person.character}</p>
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
 
                                 {/* Creators */}
@@ -589,7 +590,7 @@ function SeriesDetailsContent() {
                                     <div className="mt-2 pt-5 border-white/10 border-t">
                                         <p className="mb-3 pl-1 font-bold text-[10px] text-slate-500 uppercase tracking-wider">Creators</p>
                                         {creators.map((creator) => (
-                                            <div key={creator.id} className="group flex items-center gap-4 mb-3 cursor-pointer">
+                                            <Link key={creator.id} href={`/people/${creator.id}`} className="group flex items-center gap-4 mb-3 cursor-pointer">
                                                 <div className="rounded-full ring-2 ring-transparent group-hover:ring-primary w-12 h-12 overflow-hidden transition-colors">
                                                     <div className="bg-cover bg-center w-full h-full" style={{ backgroundImage: `url('${creator.profile_path ? TMDB_PROFILE_BASE + creator.profile_path : ''}')` }} />
                                                 </div>
@@ -597,7 +598,7 @@ function SeriesDetailsContent() {
                                                     <p className="font-semibold text-slate-100 group-hover:text-primary text-sm transition-colors">{creator.name}</p>
                                                     <p className="mt-0.5 text-slate-500 text-xs">Creator</p>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         ))}
                                     </div>
                                 )}

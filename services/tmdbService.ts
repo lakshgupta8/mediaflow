@@ -21,6 +21,7 @@ export interface MediaItem {
     media_type?: string;
     overview: string;
     vote_average: number;
+    vote_count?: number;
     release_date?: string;
     first_air_date?: string;
     // Detail-specific fields:
@@ -35,6 +36,18 @@ export interface MediaItem {
     };
     videos?: {
         results: { id: string; key: string; site: string; type: string; name: string }[];
+    };
+    // Person-specific fields:
+    profile_path?: string | null;
+    biography?: string;
+    birthday?: string;
+    deathday?: string | null;
+    place_of_birth?: string;
+    known_for_department?: string;
+    gender?: number;
+    combined_credits?: {
+        cast: MediaItem[];
+        crew: MediaItem[];
     };
 }
 
@@ -124,5 +137,23 @@ export const tmdbService = {
             }
         });
         return data.results || [];
+    },
+
+    /**
+     * Get details of a specific person.
+     */
+    async getPersonDetails(id: number): Promise<MediaItem> {
+        const { data } = await tmdb.get<MediaItem>(`/person/${id}`, {
+            params: { append_to_response: 'combined_credits,external_ids' },
+        });
+        return data;
+    },
+
+    /**
+     * Get combined credits (movies and TV) for a person.
+     */
+    async getPersonCredits(id: number): Promise<MediaItem['combined_credits']> {
+        const { data } = await tmdb.get<MediaItem['combined_credits']>(`/person/${id}/combined_credits`);
+        return data;
     }
 };

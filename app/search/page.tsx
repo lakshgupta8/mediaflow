@@ -4,9 +4,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { MovieCard } from '@/components/MovieCard';
-import { Search, LayoutGrid, List, ChevronLeft, ChevronRight, SlidersHorizontal, TrendingUp, X } from 'lucide-react';
+import { Search, LayoutGrid, List, ChevronLeft, ChevronRight, SlidersHorizontal, TrendingUp, X, User } from 'lucide-react';
 import { Suspense, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { PersonCard } from '@/components/PersonCard';
 
 type FilterType = 'all' | 'movie' | 'tv' | 'person';
 type SortType = 'relevance' | 'rating' | 'year';
@@ -234,7 +235,11 @@ function SearchContent() {
                     {viewMode === 'grid' ? (
                         <div className="gap-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                             {sortedResults.map((item) => (
-                                <MovieCard key={`${item.media_type}-${item.id}`} item={item} fillWidth />
+                                item.media_type === 'person' ? (
+                                    <PersonCard key={`person-${item.id}`} item={item} />
+                                ) : (
+                                    <MovieCard key={`${item.media_type}-${item.id}`} item={item} fillWidth />
+                                )
                             ))}
                         </div>
                     ) : (
@@ -244,11 +249,14 @@ function SearchContent() {
                                 const title = item.title || item.name || 'Unknown';
                                 const releaseDate = item.release_date || item.first_air_date || '';
                                 const year = releaseDate ? new Date(releaseDate).getFullYear() : '';
-                                const image = item.poster_path
-                                    ? `${TMDB_IMAGE_BASE}${item.poster_path}`
-                                    : '';
                                 const rating = item.vote_average ? item.vote_average.toFixed(1) : null;
-                                const href = `/${item.media_type === 'tv' ? 'series' : 'movie'}/${item.id}`;
+                                const isPerson = item.media_type === 'person';
+                                const href = isPerson 
+                                    ? `/people/${item.id}` 
+                                    : `/${item.media_type === 'tv' ? 'series' : 'movie'}/${item.id}`;
+                                const displayImage = isPerson 
+                                    ? (item.profile_path ? `${TMDB_IMAGE_BASE}${item.profile_path}` : '')
+                                    : (item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : '');
 
                                 return (
                                     <Link
@@ -256,11 +264,17 @@ function SearchContent() {
                                         href={href}
                                         className="group flex gap-4 bg-surface-dark/40 hover:bg-surface-dark/70 p-3 border border-white/5 hover:border-primary/30 rounded-xl transition-all duration-200"
                                     >
-                                        {/* Poster */}
+                                        {/* Poster/Profile */}
                                         <div
                                             className="shrink-0 bg-white/5 bg-cover bg-center rounded-lg w-16 h-24"
-                                            style={image ? { backgroundImage: `url('${image}')` } : {}}
-                                        />
+                                            style={displayImage ? { backgroundImage: `url('${displayImage}')` } : {}}
+                                        >
+                                            {!displayImage && isPerson && (
+                                                <div className="flex justify-center items-center w-full h-full">
+                                                    <User size={24} className="text-slate-600" />
+                                                </div>
+                                            )}
+                                        </div>
                                         {/* Info */}
                                         <div className="flex flex-col flex-1 justify-center gap-1 min-w-0">
                                             <h3 className="font-semibold text-white group-hover:text-primary truncate transition-colors">
