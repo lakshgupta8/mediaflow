@@ -4,9 +4,24 @@ import { HeroSection } from "@/components/HeroSection";
 import { MovieRow } from "@/components/MovieRow";
 import { MovieCard } from "@/components/MovieCard";
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { tmdbService } from '@/services/tmdbService';
 
+// Fisher-Yates shuffle
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Pick a random page (1–10) once per module load so the top-rated section varies
+const randomPage = Math.floor(Math.random() * 10) + 1;
+
 export default function Home() {
+
   const { data: trendingAll, isLoading: isLoadingAll } = useQuery({
     queryKey: ['trending', 'all', 'day'],
     queryFn: () => tmdbService.getTrending('all', 'day'),
@@ -23,14 +38,14 @@ export default function Home() {
   });
 
   const { data: topRated, isLoading: isLoadingTopRated } = useQuery({
-    queryKey: ['top_rated', 'movie'],
-    queryFn: () => tmdbService.getTopRated('movie'),
+    queryKey: ['top_rated', 'movie', randomPage],
+    queryFn: () => tmdbService.getTopRated('movie', randomPage),
   });
 
   const trendingItems = trendingAll?.results || [];
   const topMovies = trendingMovies?.results || [];
   const topSeries = trendingSeries?.results || [];
-  const highestRated = topRated?.results || [];
+  const highestRated = useMemo(() => shuffleArray(topRated?.results || []), [topRated]);
 
   // Find a suitable hero item
   const heroItem = trendingItems.find(item => item.backdrop_path) || trendingItems[0];
