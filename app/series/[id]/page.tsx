@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from 'react';
-import { Play, Plus, Share2, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye } from 'lucide-react';
+import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -171,9 +171,6 @@ function SeriesDetailsContent() {
                             >
                                 {isWatched ? <Check size={20} /> : <Eye size={20} />}
                                 {isWatched ? 'Watched It' : 'Mark as Watched'}
-                            </button>
-                            <button className="flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl w-12 h-12 text-slate-100 transition-all">
-                                <Share2 size={20} />
                             </button>
                         </div>
                     </div>

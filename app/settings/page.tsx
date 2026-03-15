@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { User, Bell, LogOut } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import AccountSettings from '@/components/AccountSettings';
-import NotificationSettings from '@/components/NotificationSettings';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { AuthGuard } from '@/components/AuthGuard';
@@ -13,7 +12,6 @@ export default function SettingsPage() {
 
     const tabs = [
         { id: 'account', label: 'Account Settings', icon: User },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
     ];
 
     const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
@@ -74,7 +72,6 @@ export default function SettingsPage() {
                     {/* Content Area */}
                     <div className="flex-1 bg-surface-dark p-6 lg:p-10 border border-white/5 rounded-2xl w-full">
                         {activeTab === 'account' && <AccountSettings />}
-                        {activeTab === 'notifications' && <NotificationSettings />}
                     </div>
                 </div>
             </div>

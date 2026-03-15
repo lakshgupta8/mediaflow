@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Bell } from "lucide-react";
+import { Search } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useDispatch } from "react-redux";
 import { setSearchQuery } from "@/store/features/searchSlice";
@@ -101,9 +101,6 @@ export function Header() {
                 <div className="group md:hidden relative">
                     <Search className="text-slate-400" size={20} />
                 </div>
-                <button className="bg-surface-dark/80 hover:bg-white/10 p-2 border border-white/10 rounded-full text-slate-300 hover:text-white transition-colors">
-                    <Bell size={20} />
-                </button>
             </div>
         </header>
     );

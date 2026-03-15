@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { Play, Plus, Share2, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
+import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
@@ -126,9 +126,6 @@ function MovieDetailsContent() {
                             >
                                 {isWatched ? <Check size={20} /> : <Eye size={20} />}
                                 {isWatched ? 'Watched It' : 'Mark as Watched'}
-                            </button>
-                            <button className="flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl w-12 h-12 text-slate-100 transition-all">
-                                <Share2 size={20} />
                             </button>
                         </div>
                     </div>
