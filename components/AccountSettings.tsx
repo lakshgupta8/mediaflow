@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Camera, Laptop, Trash2, AlertTriangle } from 'lucide-react';
+import { Camera, Trash2, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useForm } from 'react-hook-form';
@@ -217,31 +217,6 @@ export default function AccountSettings() {
                     </button>
                 </div>
             </form>
-
-            {/* Connected Devices */}
-            <div className="space-y-6 opacity-50 pt-6 border-white/5 border-t pointer-events-none">
-                <div className="flex justify-between items-center pb-4 border-white/5 border-b">
-                    <h3 className="flex items-center gap-2 font-bold text-white text-xl">
-                        <span className="bg-primary rounded-full w-1 h-5"></span> Connected Devices (Coming Soon)
-                    </h3>
-                </div>
-
-                <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 pt-2">
-                    {/* Device 1 */}
-                    <div className="group relative flex flex-col gap-4 bg-background-dark p-4 border border-primary/20 rounded-xl overflow-hidden">
-                        <div className="top-0 right-0 absolute bg-primary/5 group-hover:bg-primary/10 blur-2xl rounded-full w-24 h-24 transition-colors -translate-y-1/2 translate-x-1/3"></div>
-                        <div className="z-10 flex items-start gap-4">
-                            <div className="flex justify-center items-center bg-primary/10 rounded-lg w-10 h-10 shrink-0">
-                                <Laptop className="text-primary" size={20} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="font-bold text-white">Current Device</span>
-                                <span className="flex items-center gap-1 mt-0.5 font-bold text-primary text-xs"><div className="bg-primary rounded-full w-1.5 h-1.5"></div> Active</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Danger Zone */}
             <div className="space-y-6 pt-6 border-white/5 border-t">

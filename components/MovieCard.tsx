@@ -8,11 +8,12 @@ import Link from 'next/link';
 interface MovieCardProps {
     item: MediaItem;
     isRec?: boolean;
+    fillWidth?: boolean;
 }
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
-export function MovieCard({ item, isRec }: MovieCardProps) {
+export function MovieCard({ item, isRec, fillWidth }: MovieCardProps) {
     const title = item.title || item.name || 'Unknown';
     const releaseDate = item.release_date || item.first_air_date || '';
     const year = releaseDate ? new Date(releaseDate).getFullYear() : '';
@@ -86,7 +87,7 @@ export function MovieCard({ item, isRec }: MovieCardProps) {
     }
 
     return (
-        <Link href={href} className="group flex flex-col gap-3 w-[200px] min-w-[200px] snap-start cursor-pointer">
+        <Link href={href} className={`group flex flex-col gap-3 snap-start cursor-pointer ${fillWidth ? 'w-full' : 'w-[200px] min-w-[200px]'}`}>
             <div
                 className="relative bg-cover bg-center shadow-lg group-hover:shadow-[0_0_20px_rgba(19,236,91,0.2)] border border-white/10 group-hover:border-primary rounded-xl aspect-2/3 overflow-hidden transition-all duration-300 transform"
                 style={{ backgroundImage: `url('${image}')` }}
