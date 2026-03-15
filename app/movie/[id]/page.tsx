@@ -1,13 +1,14 @@
 "use client";
 
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye, Heart } from 'lucide-react';
+import { Play, Plus, Star, Check, Eye, Heart } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
+import { ReviewSection } from '@/components/ReviewSection';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -25,16 +26,16 @@ function MovieDetailsContent() {
         enabled: !!id,
     });
 
-    const { 
-        watchlist, 
-        addToWatchlist, 
-        removeFromWatchlist, 
-        recentWatches, 
-        addToRecent, 
+    const {
+        watchlist,
+        addToWatchlist,
+        removeFromWatchlist,
+        recentWatches,
+        addToRecent,
         removeFromRecent,
         favorites,
         addToFavorites,
-        removeFromFavorites 
+        removeFromFavorites
     } = useSupabase();
 
     useEffect(() => {
@@ -243,25 +244,7 @@ function MovieDetailsContent() {
                     </section>
 
                     {/* User Reviews */}
-                    <section className="space-y-6">
-                        <div className="flex justify-between items-center pb-4 border-surface-dark border-b">
-                            <h3 className="flex items-center gap-2 font-bold text-slate-100 text-2xl">
-                                <span className="bg-primary rounded-full w-1 h-6"></span> User Reviews
-                            </h3>
-                            <button className="flex items-center gap-2 hover:bg-primary/10 px-4 py-2 rounded-lg font-semibold text-primary text-sm transition-colors">
-                                <Edit3 size={16} /> Write Review
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {/* Keep the static reviews structure as placeholders for now */}
-                            <div className="flex flex-col flex-1 justify-center items-center opacity-50 py-10">
-                                <MessageSquare size={48} className="mb-4 text-slate-500" />
-                                <h2 className="font-semibold text-slate-400 text-xl">No reviews yet</h2>
-                                <p className="mt-2 text-slate-500 text-sm">Be the first to review this movie</p>
-                            </div>
-                        </div>
-                    </section>
+                    <ReviewSection mediaId={id} mediaType="movie" />
 
                 </div>
 
@@ -318,18 +301,6 @@ function MovieDetailsContent() {
                                 <span className="font-medium text-slate-400 text-sm">Release Date</span>
                                 <span className="font-semibold text-slate-200 text-sm">{releaseDate}</span>
                             </div>
-                            {movie.budget && (
-                                <div className="flex justify-between items-center bg-white/5 px-4 py-2.5 rounded-lg">
-                                    <span className="font-medium text-slate-400 text-sm">Budget</span>
-                                    <span className="font-semibold text-slate-200 text-sm">${movie.budget.toLocaleString()}</span>
-                                </div>
-                            )}
-                            {movie.revenue && (
-                                <div className="flex justify-between items-center bg-white/5 px-4 py-2.5 rounded-lg">
-                                    <span className="font-medium text-slate-400 text-sm">Revenue</span>
-                                    <span className="font-semibold text-primary text-sm">${movie.revenue.toLocaleString()}</span>
-                                </div>
-                            )}
                         </div>
                     </section>
 
