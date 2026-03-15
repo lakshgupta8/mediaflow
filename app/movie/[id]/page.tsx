@@ -1,11 +1,13 @@
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -13,6 +15,9 @@ const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
 function MovieDetailsContent() {
     const params = useParams();
     const id = Number(params.id);
+    const [isWatching, setIsWatching] = useState(false);
+    const latestProgress = useRef(0);
+    const user = useSelector((state: RootState) => state.auth.user);
 
     const { data: movie, isLoading, error } = useQuery({
         queryKey: ['movie', id],
@@ -21,6 +26,38 @@ function MovieDetailsContent() {
     });
 
     const { watchlist, addToWatchlist, removeFromWatchlist, recentWatches, addToRecent, removeFromRecent } = useSupabase();
+
+    useEffect(() => {
+        if (!isWatching || !movie) return;
+
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (data?.type === 'PLAYER_EVENT' && data.data) {
+                    const playerEvent = data.data;
+                    if (['timeupdate', 'ended', 'pause'].includes(playerEvent.event)) {
+                        const currentProgress = playerEvent.event === 'ended' ? 100 : playerEvent.progress;
+                        latestProgress.current = currentProgress;
+
+                        if (user && (playerEvent.event === 'ended' || playerEvent.event === 'pause')) {
+                            addToRecent({ mediaId: movie.id, mediaType: 'movie', progress: currentProgress });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log(err)
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            if (user && latestProgress.current > 0) {
+                addToRecent({ mediaId: movie.id, mediaType: 'movie', progress: latestProgress.current });
+            }
+        };
+    }, [isWatching, movie, addToRecent, user]);
 
     if (isLoading || !movie) {
         return <div className="flex flex-1 justify-center items-center min-h-[60vh] text-slate-400">Loading movie details...</div>;
@@ -47,8 +84,8 @@ function MovieDetailsContent() {
     const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === movie.id);
 
     // Find the first YouTube trailer, or fallback to any YouTube video attached
-    const trailerVideo = movie.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') || 
-                         movie.videos?.results?.find(vid => vid.site === 'YouTube');
+    const trailerVideo = movie.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') ||
+        movie.videos?.results?.find(vid => vid.site === 'YouTube');
     const trailerUrl = trailerVideo ? `https://www.youtube.com/watch?v=${trailerVideo.key}` : null;
 
     const toggleWatchlist = () => {
@@ -71,65 +108,90 @@ function MovieDetailsContent() {
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
             {/* Hero Section */}
-            <section className="relative flex items-end w-full min-h-[500px] aspect-21/9">
-                <div className="z-0 absolute inset-0">
-                    <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
-                    <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
-                    <div
-                        className="bg-cover bg-center w-full h-full"
-                        style={{ backgroundImage: `url('${backdropUrl}')` }}
-                    />
-                </div>
+            <section className={`relative flex items-end w-full ${isWatching ? 'aspect-video bg-black pt-20 pb-10' : 'min-h-[500px] aspect-21/9'}`}>
+                {isWatching ? (
+                    <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 w-full max-w-[1400px] h-[60vh] md:h-[80vh]">
+                        <button
+                            onClick={() => setIsWatching(false)}
+                            className="-top-12 right-6 z-50 absolute flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md p-2 border border-white/10 rounded-full text-white transition-all"
+                        >
+                            <Plus className="rotate-45" size={20} />
+                        </button>
+                        <iframe
+                            src={`https://www.vidking.net/embed/movie/${movie.id}?color=13ec5b&autoPlay=true`}
+                            className="shadow-2xl shadow-black/80 border-0 rounded-2xl ring-1 ring-white/10 w-full h-full"
+                            allowFullScreen
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <div className="z-0 absolute inset-0">
+                            <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+                            <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
+                            <div
+                                className="bg-cover bg-center w-full h-full"
+                                style={{ backgroundImage: `url('${backdropUrl}')` }}
+                            />
+                        </div>
 
-                <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
-                    <div className="space-y-6 max-w-2xl">
-                        <div className="space-y-4">
-                            <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
-                                {title}
-                            </h1>
-                            <div className="flex flex-wrap items-center gap-4 font-medium text-slate-300 text-sm">
-                                <span className="bg-primary/20 px-2.5 py-1 border border-primary/30 rounded text-primary">
-                                    HD
-                                </span>
-                                <span>{year}</span>
-                                <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
-                                <span>{duration}</span>
-                                <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
-                                <span className="flex items-center gap-1.5 text-primary">
-                                    <Star fill="currentColor" size={16} /> {rating}
-                                </span>
+                        <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
+                            <div className="space-y-6 max-w-2xl">
+                                <div className="space-y-4">
+                                    <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
+                                        {title}
+                                    </h1>
+                                    <div className="flex flex-wrap items-center gap-4 font-medium text-slate-300 text-sm">
+                                        <span className="bg-primary/20 px-2.5 py-1 border border-primary/30 rounded text-primary">
+                                            HD
+                                        </span>
+                                        <span>{year}</span>
+                                        <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
+                                        <span>{duration}</span>
+                                        <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
+                                        <span className="flex items-center gap-1.5 text-primary">
+                                            <Star fill="currentColor" size={16} /> {rating}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 pt-4">
+                                    <button
+                                        onClick={() => setIsWatching(true)}
+                                        className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
+                                    >
+                                        <Play fill="currentColor" size={20} />
+                                        Watch Now
+                                    </button>
+                                    {trailerUrl && (
+                                        <a
+                                            href={trailerUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md px-8 py-3.5 border border-white/10 rounded-xl font-bold text-white transition-all"
+                                        >
+                                            <Play fill="currentColor" size={20} />
+                                            Play Trailer
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={toggleWatchlist}
+                                        className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                    >
+                                        {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
+                                        {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
+                                    </button>
+                                    <button
+                                        onClick={toggleWatched}
+                                        className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatched ? 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                    >
+                                        {isWatched ? <Check size={20} /> : <Eye size={20} />}
+                                        {isWatched ? 'Watched It' : 'Mark as Watched'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="flex flex-wrap gap-4 pt-4">
-                            {trailerUrl && (
-                                <a
-                                    href={trailerUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
-                                >
-                                    <Play fill="currentColor" size={20} />
-                                    Play Trailer
-                                </a>
-                            )}
-                            <button
-                                onClick={toggleWatchlist}
-                                className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
-                            >
-                                {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
-                                {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
-                            </button>
-                            <button
-                                onClick={toggleWatched}
-                                className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatched ? 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
-                            >
-                                {isWatched ? <Check size={20} /> : <Eye size={20} />}
-                                {isWatched ? 'Watched It' : 'Mark as Watched'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    </>
+                )}
             </section>
 
             {/* Content Grid */}
