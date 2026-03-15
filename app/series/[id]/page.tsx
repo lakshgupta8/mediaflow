@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
-import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye } from 'lucide-react';
+import React, { useState, Suspense, useEffect, useRef } from 'react';
+import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye, ListVideo, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -43,6 +45,13 @@ function SeriesDetailsContent() {
     const [activeSeasonNumber, setActiveSeasonNumber] = useState(1);
     const [showAllEpisodes, setShowAllEpisodes] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [activeEpisode, setActiveEpisode] = useState<{ season: number, episode: number } | null>(null);
+    const [isInactive, setIsInactive] = useState(false);
+    const [showSidebar, setShowSidebar] = useState(false);
+    const [isSidebarDropdownOpen, setIsSidebarDropdownOpen] = useState(false);
+    const latestProgress = useRef(0);
+    const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+    const user = useSelector((state: RootState) => state.auth.user);
 
     // Fetch dynamic season data whenever the activeSeasonNumber changes
     const { data: seasonData, isLoading: isSeasonLoading } = useQuery({
@@ -50,6 +59,73 @@ function SeriesDetailsContent() {
         queryFn: () => tmdbService.getTvSeason(id, activeSeasonNumber),
         enabled: !!id && !!activeSeasonNumber,
     });
+
+    useEffect(() => {
+        if (!activeEpisode || !series) return;
+
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (data?.type === 'PLAYER_EVENT' && data.data) {
+                    const playerEvent = data.data;
+                    if (['timeupdate', 'ended', 'pause'].includes(playerEvent.event)) {
+                        const currentProgress = playerEvent.event === 'ended' ? 100 : playerEvent.progress;
+                        latestProgress.current = currentProgress;
+
+                        if (user && (playerEvent.event === 'ended' || playerEvent.event === 'pause')) {
+                            addToRecent({ mediaId: series.id, mediaType: 'tv', progress: currentProgress });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            if (user && latestProgress.current > 0) {
+                addToRecent({ mediaId: series.id, mediaType: 'tv', progress: latestProgress.current });
+            }
+        };
+    }, [activeEpisode, series, addToRecent, user]);
+
+    // Inactivity Logic for Sidebar Overlay
+    useEffect(() => {
+        const resetInactivity = () => {
+            setIsInactive(false);
+            if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+            inactivityTimer.current = setTimeout(() => {
+                setIsInactive(true);
+            }, 3000); // 3 seconds of inactivity
+        };
+
+        // Track mouse passing over the document
+        window.addEventListener('mousemove', resetInactivity);
+        window.addEventListener('keydown', resetInactivity);
+        window.addEventListener('touchstart', resetInactivity);
+
+        resetInactivity();
+
+        return () => {
+            window.removeEventListener('mousemove', resetInactivity);
+            window.removeEventListener('keydown', resetInactivity);
+            window.removeEventListener('touchstart', resetInactivity);
+            if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+        };
+    }, []);
+
+    // Prevent inactivity hide if sidebar is explicitly open
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (showSidebar) {
+            timer = setTimeout(() => setIsInactive(false), 0);
+            if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+        }
+        return () => clearTimeout(timer);
+    }, [showSidebar]);
 
     if (isLoading || !series) {
         return <div className="flex flex-1 justify-center items-center min-h-[60vh] text-slate-400">Loading series details...</div>;
@@ -116,17 +192,149 @@ function SeriesDetailsContent() {
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
             {/* Hero Section */}
-            <section className="relative flex items-end w-full min-h-[500px] aspect-21/9">
-                <div className="z-0 absolute inset-0">
-                    <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
-                    <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
-                    <div
-                        className="bg-cover bg-center w-full h-full"
-                        style={{ backgroundImage: `url('${backdropUrl}')` }}
-                    />
-                </div>
+            <section className={`relative flex items-end w-full ${activeEpisode ? 'aspect-video bg-black pt-20 pb-10' : 'min-h-[500px] aspect-21/9'}`}>
+                {activeEpisode ? (
+                    <div className="relative mx-auto w-full flex justify-center items-center z-20 px-6 md:px-10 lg:px-20 max-w-[1400px] h-[60vh] md:h-[80vh]">
+                        <button
+                            onClick={() => setActiveEpisode(null)}
+                            className="-top-12 right-6 z-50 absolute flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md p-2 border border-white/10 rounded-full text-white transition-all"
+                        >
+                            <Plus className="rotate-45" size={20} />
+                        </button>
+                        <iframe
+                            src={`https://www.vidking.net/embed/tv/${series.id}/${activeEpisode.season}/${activeEpisode.episode}?color=13ec5b&autoPlay=true`}
+                            // Native cross-origin fullscreen isn't triggered, letting our wrapper own fullscreen state
+                            className="shadow-2xl border-0 rounded-2xl ring-1 shadow-black/80 ring-white/10 w-full h-full"
+                            allowFullScreen
+                        />
 
-                <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
+                        {/* Episodic Sidebar Trigger */}
+                        <div className={`absolute top-1/2 right-4 md:right-10 -translate-y-1/2 z-[51] transition-opacity duration-300 ${isInactive && !showSidebar ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                            <button
+                                onClick={() => setShowSidebar(true)}
+                                className="bg-black/50 hover:bg-primary/80 backdrop-blur-md p-4 border border-white/20 rounded-full text-white shadow-xl transition-all"
+                            >
+                                <ListVideo size={28} />
+                            </button>
+                        </div>
+
+                        {/* Sidebar Overlay */}
+                        <AnimatePresence>
+                            {showSidebar && (
+                                <motion.div
+                                    initial={{ x: '100%', opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: '100%', opacity: 0 }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                    className="top-0 right-0 bottom-0 z-[100] absolute flex flex-col bg-background-dark/95 backdrop-blur-2xl border-white/10 border-l w-80 md:w-96 shadow-2xl overflow-hidden rounded-r-2xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex justify-between items-center bg-surface-dark border-white/10 p-5 border-b shrink-0">
+                                        <h3 className="font-bold text-white text-xl">Episodes</h3>
+                                        <button onClick={() => setShowSidebar(false)} className="text-slate-400 hover:text-white transition-colors">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
+                                        {/* Season Dropdown in Sidebar */}
+                                        <div className="relative z-50">
+                                            <button
+                                                onClick={() => setIsSidebarDropdownOpen(!isSidebarDropdownOpen)}
+                                                className="flex justify-between items-center gap-3 bg-white/5 hover:bg-white/10 px-4 py-3 border border-white/10 rounded-xl w-full font-medium text-slate-200 transition-colors"
+                                            >
+                                                Season {activeSeasonNumber}
+                                                <ChevronDown size={18} className={`transition-transform ${isSidebarDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+
+                                            <AnimatePresence>
+                                                {isSidebarDropdownOpen && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: -10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -10 }}
+                                                        className="top-full right-0 left-0 absolute bg-surface-dark shadow-2xl shadow-black/50 mt-2 border border-white/10 rounded-xl max-h-48 overflow-x-hidden overflow-y-auto"
+                                                    >
+                                                        {Array.from({ length: seasonsCount }).map((_, i) => {
+                                                            const sNum = i + 1;
+                                                            return (
+                                                                <button
+                                                                    key={`side-season-${sNum}`}
+                                                                    onClick={() => {
+                                                                        handleSeasonSelect(sNum);
+                                                                        setIsSidebarDropdownOpen(false);
+                                                                    }}
+                                                                    className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors ${activeSeasonNumber === sNum ? 'text-primary bg-primary/5' : 'text-slate-300'}`}
+                                                                >
+                                                                    Season {sNum}
+                                                                    {activeSeasonNumber === sNum && <span className="float-right bg-primary mt-1.5 rounded-full w-1.5 h-1.5"></span>}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+
+                                        {/* Episodes List in Sidebar */}
+                                        <div className="space-y-3 pb-6">
+                                            {isSeasonLoading ? (
+                                                <div className="flex justify-center items-center py-10 text-slate-400">
+                                                    <Loader2 className="animate-spin text-primary" size={24} />
+                                                </div>
+                                            ) : episodes.length === 0 ? (
+                                                <div className="text-center text-slate-400 py-6 text-sm">
+                                                    No episodes available.
+                                                </div>
+                                            ) : (
+                                                episodes.map(ep => {
+                                                    const isActive = activeEpisode?.season === activeSeasonNumber && activeEpisode?.episode === ep.episode_number;
+                                                    return (
+                                                        <div 
+                                                            key={ep.id} 
+                                                            onClick={() => {
+                                                                setActiveEpisode({ season: activeSeasonNumber, episode: ep.episode_number });
+                                                                setShowSidebar(false);
+                                                            }}
+                                                            className={`flex gap-3 cursor-pointer p-2 rounded-xl transition-all ${isActive ? 'bg-primary/20 border border-primary/50' : 'hover:bg-white/5 border border-transparent'}`}
+                                                        >
+                                                            <div className="rounded-lg w-24 md:w-28 aspect-video bg-cover bg-center shrink-0 relative overflow-hidden" style={{ backgroundImage: `url(${ep.image})` }}>
+                                                                {isActive && (
+                                                                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                                                        <div className="bg-primary text-black rounded-full p-1"><Play size={14} fill="currentColor" /></div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-col justify-center flex-1 min-w-0">
+                                                                <p className={`font-semibold text-sm truncate ${isActive ? 'text-primary' : 'text-slate-200'}`}>{ep.episode_number}. {ep.title}</p>
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <span className="text-slate-400 text-[11px]">{ep.duration}</span>
+                                                                    <span className="bg-slate-500 rounded-full w-1 h-1"></span>
+                                                                    <span className="flex items-center gap-1 text-[10px] text-slate-300"><Star size={10} className="text-primary" fill="currentColor" /> {ep.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                ) : (
+                    <>
+                        <div className="z-0 absolute inset-0">
+                            <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+                            <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
+                            <div
+                                className="bg-cover bg-center w-full h-full"
+                                style={{ backgroundImage: `url('${backdropUrl}')` }}
+                            />
+                        </div>
+
+                        <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
                     <div className="space-y-6 max-w-2xl">
                         <div className="space-y-4">
                             <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
@@ -175,6 +383,8 @@ function SeriesDetailsContent() {
                         </div>
                     </div>
                 </div>
+                    </>
+                )}
             </section>
 
             {/* Content Grid */}
@@ -259,6 +469,10 @@ function SeriesDetailsContent() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.05 }}
+                                            onClick={() => {
+                                                setActiveEpisode({ season: activeSeasonNumber, episode: ep.episode_number });
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
                                             className="group relative flex sm:flex-row flex-col gap-4 sm:gap-6 bg-surface-dark p-4 border border-white/5 hover:border-primary/30 rounded-2xl overflow-hidden transition-all cursor-pointer"
                                         >
                                             {/* Highlight Bar */}
