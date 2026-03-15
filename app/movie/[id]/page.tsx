@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { Play, Plus, Share2, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
+import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
@@ -45,6 +45,11 @@ function MovieDetailsContent() {
 
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === movie.id);
     const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === movie.id);
+
+    // Find the first YouTube trailer, or fallback to any YouTube video attached
+    const trailerVideo = movie.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') || 
+                         movie.videos?.results?.find(vid => vid.site === 'YouTube');
+    const trailerUrl = trailerVideo ? `https://www.youtube.com/watch?v=${trailerVideo.key}` : null;
 
     const toggleWatchlist = () => {
         if (isWatchlisted) {
@@ -97,10 +102,17 @@ function MovieDetailsContent() {
                         </div>
 
                         <div className="flex flex-wrap gap-4 pt-4">
-                            <button className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform">
-                                <Play fill="currentColor" size={20} />
-                                Play Trailer
-                            </button>
+                            {trailerUrl && (
+                                <a
+                                    href={trailerUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
+                                >
+                                    <Play fill="currentColor" size={20} />
+                                    Play Trailer
+                                </a>
+                            )}
                             <button
                                 onClick={toggleWatchlist}
                                 className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
@@ -114,9 +126,6 @@ function MovieDetailsContent() {
                             >
                                 {isWatched ? <Check size={20} /> : <Eye size={20} />}
                                 {isWatched ? 'Watched It' : 'Mark as Watched'}
-                            </button>
-                            <button className="flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl w-12 h-12 text-slate-100 transition-all">
-                                <Share2 size={20} />
                             </button>
                         </div>
                     </div>

@@ -33,6 +33,9 @@ export interface MediaItem {
         cast: { id: number; name: string; character: string; profile_path: string | null }[];
         crew: { id: number; name: string; job: string; profile_path: string | null }[];
     };
+    videos?: {
+        results: { id: string; key: string; site: string; type: string; name: string }[];
+    };
 }
 
 export const tmdbService = {
@@ -72,7 +75,7 @@ export const tmdbService = {
      */
     async getDetails(mediaType: 'movie' | 'tv', id: number): Promise<MediaItem> {
         const { data } = await tmdb.get<MediaItem>(`/${mediaType}/${id}`, {
-            params: { append_to_response: 'credits' },
+            params: { append_to_response: 'credits,videos' },
         });
         return data;
     },
