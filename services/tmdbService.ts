@@ -108,18 +108,18 @@ export const tmdbService = {
     },
 
     /**
-     * Get the best rated movie for a specific genre, to be used as a cover/poster.
-     * We require a minimum number of votes so we don't get obscure 10/10 movies.
+     * Get popular, highly-rated movies for a specific genre, to be used as cover images.
+     * Returns up to 20 results so the UI can pick one at random.
      */
-    async getBestMovieForGenre(genreId: number): Promise<MediaItem | null> {
+    async getTopMoviesForGenre(genreId: number): Promise<MediaItem[]> {
         const { data } = await tmdb.get<TMDBResponse<MediaItem>>('/discover/movie', {
             params: {
                 with_genres: genreId,
-                sort_by: 'vote_average.desc',
-                'vote_count.gte': 2000,
+                sort_by: 'popularity.desc',
+                'vote_count.gte': 1000,
                 page: 1
             }
         });
-        return data.results[0] || null;
+        return data.results || [];
     }
 };
