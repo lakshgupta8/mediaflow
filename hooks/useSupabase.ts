@@ -175,9 +175,9 @@ export function useSupabase() {
 
     // Add Review Mutation
     const addReviewMutation = useMutation({
-        mutationFn: async ({ mediaId, mediaType, content }: { mediaId: number; mediaType: 'movie' | 'tv'; content: string }) => {
+        mutationFn: async ({ mediaId, mediaType, content, parentId }: { mediaId: number; mediaType: 'movie' | 'tv'; content: string; parentId?: string }) => {
             if (!userId) return handleUnauthenticated();
-            return supabaseService.addReview({ user_id: userId, media_id: mediaId, media_type: mediaType, content });
+            return supabaseService.addReview({ user_id: userId, media_id: mediaId, media_type: mediaType, content, parent_id: parentId || null });
         },
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['reviews', variables.mediaId, variables.mediaType] });

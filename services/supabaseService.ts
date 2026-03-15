@@ -14,6 +14,7 @@ export interface Review {
     media_id: number;
     media_type: 'movie' | 'tv';
     content: string;
+    parent_id: string | null;
     created_at: string;
     user?: {
         full_name: string;
@@ -231,7 +232,13 @@ export const supabaseService = {
         const supabase = createClient();
         const { data, error } = await supabase
             .from('reviews')
-            .insert([review])
+            .insert([{
+                user_id: review.user_id,
+                media_id: review.media_id,
+                media_type: review.media_type,
+                content: review.content,
+                parent_id: review.parent_id || null
+            }])
             .select()
             .single();
 

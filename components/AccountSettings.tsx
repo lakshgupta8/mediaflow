@@ -244,6 +244,11 @@ export default function AccountSettings() {
                                             <span className="bg-white/10 px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                 {review.media_type === 'movie' ? 'Movie' : 'TV Show'}
                                             </span>
+                                            {review.parent_id && (
+                                                <span className="bg-primary/10 px-2 py-0.5 rounded-md text-[10px] font-bold text-primary uppercase tracking-wider">
+                                                    Reply
+                                                </span>
+                                            )}
                                             <span className="text-slate-500 text-xs text-center">•</span>
                                             <span className="text-slate-500 text-xs">
                                                 {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
