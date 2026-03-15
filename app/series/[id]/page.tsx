@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useEffect, useRef } from 'react';
 import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -43,6 +45,9 @@ function SeriesDetailsContent() {
     const [activeSeasonNumber, setActiveSeasonNumber] = useState(1);
     const [showAllEpisodes, setShowAllEpisodes] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [activeEpisode, setActiveEpisode] = useState<{ season: number, episode: number } | null>(null);
+    const latestProgress = useRef(0);
+    const user = useSelector((state: RootState) => state.auth.user);
 
     // Fetch dynamic season data whenever the activeSeasonNumber changes
     const { data: seasonData, isLoading: isSeasonLoading } = useQuery({
@@ -50,6 +55,38 @@ function SeriesDetailsContent() {
         queryFn: () => tmdbService.getTvSeason(id, activeSeasonNumber),
         enabled: !!id && !!activeSeasonNumber,
     });
+
+    useEffect(() => {
+        if (!activeEpisode || !series) return;
+
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (data?.type === 'PLAYER_EVENT' && data.data) {
+                    const playerEvent = data.data;
+                    if (['timeupdate', 'ended', 'pause'].includes(playerEvent.event)) {
+                        const currentProgress = playerEvent.event === 'ended' ? 100 : playerEvent.progress;
+                        latestProgress.current = currentProgress;
+
+                        if (user && (playerEvent.event === 'ended' || playerEvent.event === 'pause')) {
+                            addToRecent({ mediaId: series.id, mediaType: 'tv', progress: currentProgress });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            if (user && latestProgress.current > 0) {
+                addToRecent({ mediaId: series.id, mediaType: 'tv', progress: latestProgress.current });
+            }
+        };
+    }, [activeEpisode, series, addToRecent, user]);
 
     if (isLoading || !series) {
         return <div className="flex flex-1 justify-center items-center min-h-[60vh] text-slate-400">Loading series details...</div>;
@@ -116,17 +153,33 @@ function SeriesDetailsContent() {
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
             {/* Hero Section */}
-            <section className="relative flex items-end w-full min-h-[500px] aspect-21/9">
-                <div className="z-0 absolute inset-0">
-                    <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
-                    <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
-                    <div
-                        className="bg-cover bg-center w-full h-full"
-                        style={{ backgroundImage: `url('${backdropUrl}')` }}
-                    />
-                </div>
+            <section className={`relative flex items-end w-full ${activeEpisode ? 'aspect-video bg-black pt-20 pb-10' : 'min-h-[500px] aspect-21/9'}`}>
+                {activeEpisode ? (
+                    <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 w-full max-w-[1400px] h-[60vh] md:h-[80vh]">
+                        <button
+                            onClick={() => setActiveEpisode(null)}
+                            className="-top-12 right-6 z-50 absolute flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md p-2 border border-white/10 rounded-full text-white transition-all"
+                        >
+                            <Plus className="rotate-45" size={20} />
+                        </button>
+                        <iframe
+                            src={`https://www.vidking.net/embed/tv/${series.id}/${activeEpisode.season}/${activeEpisode.episode}?color=13ec5b&autoPlay=true`}
+                            className="shadow-2xl shadow-black/80 border-0 rounded-2xl ring-1 ring-white/10 w-full h-full"
+                            allowFullScreen
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <div className="z-0 absolute inset-0">
+                            <div className="z-10 absolute inset-0 bg-linear-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+                            <div className="z-10 absolute inset-0 bg-linear-to-r from-background-dark via-transparent to-transparent"></div>
+                            <div
+                                className="bg-cover bg-center w-full h-full"
+                                style={{ backgroundImage: `url('${backdropUrl}')` }}
+                            />
+                        </div>
 
-                <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
+                        <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
                     <div className="space-y-6 max-w-2xl">
                         <div className="space-y-4">
                             <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
@@ -175,6 +228,8 @@ function SeriesDetailsContent() {
                         </div>
                     </div>
                 </div>
+                    </>
+                )}
             </section>
 
             {/* Content Grid */}
@@ -259,6 +314,10 @@ function SeriesDetailsContent() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.05 }}
+                                            onClick={() => {
+                                                setActiveEpisode({ season: activeSeasonNumber, episode: ep.episode_number });
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
                                             className="group relative flex sm:flex-row flex-col gap-4 sm:gap-6 bg-surface-dark p-4 border border-white/5 hover:border-primary/30 rounded-2xl overflow-hidden transition-all cursor-pointer"
                                         >
                                             {/* Highlight Bar */}
