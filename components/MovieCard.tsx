@@ -22,28 +22,30 @@ export function MovieCard({ item, isRec, fillWidth }: MovieCardProps) {
     const description = item.overview;
     const { watchlist, addToWatchlist, removeFromWatchlist, favorites, addToFavorites, removeFromFavorites } = useSupabase();
 
+    const derivedMediaType = item.media_type || (item.first_air_date ? 'tv' : 'movie');
+
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === item.id);
     const isFavorited = favorites.some((f: { media_id: number }) => f.media_id === item.id);
 
     const toggleWatchlist = (e: React.MouseEvent) => {
         e.preventDefault(); // Prevent navigating if wrapped in a link later
         if (isWatchlisted) {
-            removeFromWatchlist({ mediaId: item.id, mediaType: item.media_type as 'movie' | 'tv' });
+            removeFromWatchlist({ mediaId: item.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         } else {
-            addToWatchlist({ mediaId: item.id, mediaType: item.media_type as 'movie' | 'tv' });
+            addToWatchlist({ mediaId: item.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         }
     };
 
     const toggleFavorite = (e: React.MouseEvent) => {
         e.preventDefault();
         if (isFavorited) {
-            removeFromFavorites({ mediaId: item.id, mediaType: item.media_type as 'movie' | 'tv' });
+            removeFromFavorites({ mediaId: item.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         } else {
-            addToFavorites({ mediaId: item.id, mediaType: item.media_type as 'movie' | 'tv' });
+            addToFavorites({ mediaId: item.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         }
     };
 
-    const href = `/${item.media_type === 'tv' ? 'series' : 'movie'}/${item.id}`;
+    const href = `/${derivedMediaType === 'tv' ? 'series' : 'movie'}/${item.id}`;
 
     if (isRec) {
         return (
@@ -108,7 +110,7 @@ export function MovieCard({ item, isRec, fillWidth }: MovieCardProps) {
                     {title}
                 </h3>
                 <div className="flex justify-between mt-1 text-slate-400 text-xs">
-                    <span>{item.media_type === 'tv' ? 'TV Show' : 'Movie'}</span>
+                    <span>{derivedMediaType === 'tv' ? 'TV Show' : 'Movie'}</span>
                     <span>{year}</span>
                 </div>
             </div>
