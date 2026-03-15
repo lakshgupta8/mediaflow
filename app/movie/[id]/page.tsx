@@ -46,6 +46,11 @@ function MovieDetailsContent() {
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === movie.id);
     const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === movie.id);
 
+    // Find the first YouTube trailer, or fallback to any YouTube video attached
+    const trailerVideo = movie.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') || 
+                         movie.videos?.results?.find(vid => vid.site === 'YouTube');
+    const trailerUrl = trailerVideo ? `https://www.youtube.com/watch?v=${trailerVideo.key}` : null;
+
     const toggleWatchlist = () => {
         if (isWatchlisted) {
             removeFromWatchlist({ mediaId: movie.id, mediaType: 'movie' });
@@ -97,10 +102,17 @@ function MovieDetailsContent() {
                         </div>
 
                         <div className="flex flex-wrap gap-4 pt-4">
-                            <button className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform">
-                                <Play fill="currentColor" size={20} />
-                                Play Trailer
-                            </button>
+                            {trailerUrl && (
+                                <a
+                                    href={trailerUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
+                                >
+                                    <Play fill="currentColor" size={20} />
+                                    Play Trailer
+                                </a>
+                            )}
                             <button
                                 onClick={toggleWatchlist}
                                 className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
