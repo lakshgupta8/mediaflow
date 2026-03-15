@@ -5,7 +5,7 @@ import { Search, Bell } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useDispatch } from "react-redux";
 import { setSearchQuery } from "@/store/features/searchSlice";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type SearchForm = {
     query: string;
@@ -16,9 +16,13 @@ export function Header() {
     const router = useRouter();
     const dispatch = useDispatch();
 
+    const inputRef = useRef<HTMLInputElement | null>(null);
+
     const { register, control, handleSubmit, setValue } = useForm<SearchForm>({
         defaultValues: { query: "" }
     });
+
+    const { ref: formRef, ...registerQuery } = register('query');
 
     const query = useWatch({
         control,
@@ -35,6 +39,9 @@ export function Header() {
         if (pathname !== '/search') {
             setValue('query', "");
             dispatch(setSearchQuery(""));
+        } else {
+            // Auto-focus the search input on the search page
+            inputRef.current?.focus();
         }
     }, [pathname, setValue, dispatch]);
 
@@ -73,7 +80,11 @@ export function Header() {
                         <Search className="text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
                     </div>
                     <input
-                        {...register('query')}
+                        {...registerQuery}
+                        ref={(e) => {
+                            formRef(e);
+                            inputRef.current = e;
+                        }}
                         className="block bg-surface-dark/80 shadow-lg backdrop-blur-md py-3 pr-4 pl-12 border border-white/10 focus:border-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 w-full text-white text-sm transition-all placeholder-slate-400"
                         placeholder={placeholder}
                         type="text"

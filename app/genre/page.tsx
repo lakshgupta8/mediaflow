@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Film, Search } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
@@ -9,12 +9,22 @@ import { tmdbService, TMDBGenre } from '@/services/tmdbService';
 import Link from 'next/link';
 import { generateGradientById } from '@/utils/helpers'; // Assuming we have or will create this
 
+// Generate a seed once per module load (changes on each page refresh)
+const pageSeed = Date.now();
+
 function GenreCard({ genre }: { genre: TMDBGenre }) {
-    const { data: bestMovie } = useQuery({
-        queryKey: ['bestMovie', genre.id],
-        queryFn: () => tmdbService.getBestMovieForGenre(genre.id),
+    const { data: topMovies } = useQuery({
+        queryKey: ['topMoviesForGenre', genre.id],
+        queryFn: () => tmdbService.getTopMoviesForGenre(genre.id),
         staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours
     });
+
+    // Pick a pseudo-random movie using a stable seed (genre ID + page load time)
+    const bestMovie = useMemo(() => {
+        if (!topMovies || topMovies.length === 0) return null;
+        const index = (genre.id + pageSeed) % topMovies.length;
+        return topMovies[index];
+    }, [topMovies, genre.id]);
 
     const bgImage = bestMovie?.poster_path || bestMovie?.backdrop_path
         ? `https://image.tmdb.org/t/p/w780${bestMovie.poster_path || bestMovie.backdrop_path}`
