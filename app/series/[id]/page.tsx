@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useEffect, useRef } from 'react';
-import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye, ListVideo, X } from 'lucide-react';
+import { Play, Plus, Star, ChevronDown, MonitorPlay, Check, Loader2, Eye, ListVideo, X, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -36,7 +36,17 @@ function SeriesDetailsContent() {
         enabled: !!id,
     });
 
-    const { watchlist, addToWatchlist, removeFromWatchlist, recentWatches, addToRecent, removeFromRecent } = useSupabase();
+    const { 
+        watchlist, 
+        addToWatchlist, 
+        removeFromWatchlist, 
+        recentWatches, 
+        addToRecent, 
+        removeFromRecent,
+        favorites,
+        addToFavorites,
+        removeFromFavorites 
+    } = useSupabase();
 
     // Series specific fields 
     const tvExtended = series as typeof series & TVSeriesExt;
@@ -147,10 +157,11 @@ function SeriesDetailsContent() {
 
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === series.id);
     const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === series.id);
+    const isFavorited = favorites.some((f: { media_id: number }) => f.media_id === series.id);
 
     // Find the first YouTube trailer, or fallback to any YouTube video attached
-    const trailerVideo = series.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') || 
-                         series.videos?.results?.find(vid => vid.site === 'YouTube');
+    const trailerVideo = series.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') ||
+        series.videos?.results?.find(vid => vid.site === 'YouTube');
     const trailerUrl = trailerVideo ? `https://www.youtube.com/watch?v=${trailerVideo.key}` : null;
 
     const toggleWatchlist = () => {
@@ -166,6 +177,14 @@ function SeriesDetailsContent() {
             removeFromRecent({ mediaId: series.id, mediaType: 'tv' });
         } else {
             addToRecent({ mediaId: series.id, mediaType: 'tv', progress: 100 });
+        }
+    };
+
+    const toggleFavorite = () => {
+        if (isFavorited) {
+            removeFromFavorites({ mediaId: series.id, mediaType: 'tv' });
+        } else {
+            addToFavorites({ mediaId: series.id, mediaType: 'tv' });
         }
     };
 
@@ -194,7 +213,7 @@ function SeriesDetailsContent() {
             {/* Hero Section */}
             <section className={`relative flex items-end w-full ${activeEpisode ? 'aspect-video bg-black pt-20 pb-10' : 'min-h-[500px] aspect-21/9'}`}>
                 {activeEpisode ? (
-                    <div className="relative mx-auto w-full flex justify-center items-center z-20 px-6 md:px-10 lg:px-20 max-w-[1400px] h-[60vh] md:h-[80vh]">
+                    <div className="z-20 relative flex justify-center items-center mx-auto px-6 md:px-10 lg:px-20 w-full max-w-[1400px] h-[60vh] md:h-[80vh]">
                         <button
                             onClick={() => setActiveEpisode(null)}
                             className="-top-12 right-6 z-50 absolute flex justify-center items-center bg-white/10 hover:bg-white/20 backdrop-blur-md p-2 border border-white/10 rounded-full text-white transition-all"
@@ -204,15 +223,15 @@ function SeriesDetailsContent() {
                         <iframe
                             src={`https://www.vidking.net/embed/tv/${series.id}/${activeEpisode.season}/${activeEpisode.episode}?color=13ec5b&autoPlay=true`}
                             // Native cross-origin fullscreen isn't triggered, letting our wrapper own fullscreen state
-                            className="shadow-2xl border-0 rounded-2xl ring-1 shadow-black/80 ring-white/10 w-full h-full"
+                            className="shadow-2xl shadow-black/80 border-0 rounded-2xl ring-1 ring-white/10 w-full h-full"
                             allowFullScreen
                         />
 
                         {/* Episodic Sidebar Trigger */}
-                        <div className={`absolute top-1/2 right-4 md:right-10 -translate-y-1/2 z-[51] transition-opacity duration-300 ${isInactive && !showSidebar ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                        <div className={`absolute top-1/2 right-4 md:right-10 -translate-y-1/2 z-51 transition-opacity duration-300 ${isInactive && !showSidebar ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                             <button
                                 onClick={() => setShowSidebar(true)}
-                                className="bg-black/50 hover:bg-primary/80 backdrop-blur-md p-4 border border-white/20 rounded-full text-white shadow-xl transition-all"
+                                className="bg-black/50 hover:bg-primary/80 shadow-xl backdrop-blur-md p-4 border border-white/20 rounded-full text-white transition-all"
                             >
                                 <ListVideo size={28} />
                             </button>
@@ -226,19 +245,19 @@ function SeriesDetailsContent() {
                                     animate={{ x: 0, opacity: 1 }}
                                     exit={{ x: '100%', opacity: 0 }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="top-0 right-0 bottom-0 z-[100] absolute flex flex-col bg-background-dark/95 backdrop-blur-2xl border-white/10 border-l w-80 md:w-96 shadow-2xl overflow-hidden rounded-r-2xl"
+                                    className="top-0 right-0 bottom-0 z-100 absolute flex flex-col bg-background-dark/95 shadow-2xl backdrop-blur-2xl border-white/10 border-l rounded-r-2xl w-80 md:w-96 overflow-hidden"
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div className="flex justify-between items-center bg-surface-dark border-white/10 p-5 border-b shrink-0">
+                                    <div className="flex justify-between items-center bg-surface-dark p-5 border-white/10 border-b shrink-0">
                                         <h3 className="font-bold text-white text-xl">Episodes</h3>
                                         <button onClick={() => setShowSidebar(false)} className="text-slate-400 hover:text-white transition-colors">
                                             <X size={24} />
                                         </button>
                                     </div>
-                                    
-                                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
+
+                                    <div className="flex-1 space-y-6 p-4 overflow-x-hidden overflow-y-auto">
                                         {/* Season Dropdown in Sidebar */}
-                                        <div className="relative z-50">
+                                        <div className="z-50 relative">
                                             <button
                                                 onClick={() => setIsSidebarDropdownOpen(!isSidebarDropdownOpen)}
                                                 className="flex justify-between items-center gap-3 bg-white/5 hover:bg-white/10 px-4 py-3 border border-white/10 rounded-xl w-full font-medium text-slate-200 transition-colors"
@@ -280,35 +299,35 @@ function SeriesDetailsContent() {
                                         <div className="space-y-3 pb-6">
                                             {isSeasonLoading ? (
                                                 <div className="flex justify-center items-center py-10 text-slate-400">
-                                                    <Loader2 className="animate-spin text-primary" size={24} />
+                                                    <Loader2 className="text-primary animate-spin" size={24} />
                                                 </div>
                                             ) : episodes.length === 0 ? (
-                                                <div className="text-center text-slate-400 py-6 text-sm">
+                                                <div className="py-6 text-slate-400 text-sm text-center">
                                                     No episodes available.
                                                 </div>
                                             ) : (
                                                 episodes.map(ep => {
                                                     const isActive = activeEpisode?.season === activeSeasonNumber && activeEpisode?.episode === ep.episode_number;
                                                     return (
-                                                        <div 
-                                                            key={ep.id} 
+                                                        <div
+                                                            key={ep.id}
                                                             onClick={() => {
                                                                 setActiveEpisode({ season: activeSeasonNumber, episode: ep.episode_number });
                                                                 setShowSidebar(false);
                                                             }}
                                                             className={`flex gap-3 cursor-pointer p-2 rounded-xl transition-all ${isActive ? 'bg-primary/20 border border-primary/50' : 'hover:bg-white/5 border border-transparent'}`}
                                                         >
-                                                            <div className="rounded-lg w-24 md:w-28 aspect-video bg-cover bg-center shrink-0 relative overflow-hidden" style={{ backgroundImage: `url(${ep.image})` }}>
+                                                            <div className="relative bg-cover bg-center rounded-lg w-24 md:w-28 aspect-video overflow-hidden shrink-0" style={{ backgroundImage: `url(${ep.image})` }}>
                                                                 {isActive && (
-                                                                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                                                        <div className="bg-primary text-black rounded-full p-1"><Play size={14} fill="currentColor" /></div>
+                                                                    <div className="absolute inset-0 flex justify-center items-center bg-primary/20">
+                                                                        <div className="bg-primary p-1 rounded-full text-black"><Play size={14} fill="currentColor" /></div>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="flex flex-col justify-center flex-1 min-w-0">
+                                                            <div className="flex flex-col flex-1 justify-center min-w-0">
                                                                 <p className={`font-semibold text-sm truncate ${isActive ? 'text-primary' : 'text-slate-200'}`}>{ep.episode_number}. {ep.title}</p>
                                                                 <div className="flex items-center gap-2 mt-1">
-                                                                    <span className="text-slate-400 text-[11px]">{ep.duration}</span>
+                                                                    <span className="text-[11px] text-slate-400">{ep.duration}</span>
                                                                     <span className="bg-slate-500 rounded-full w-1 h-1"></span>
                                                                     <span className="flex items-center gap-1 text-[10px] text-slate-300"><Star size={10} className="text-primary" fill="currentColor" /> {ep.rating}</span>
                                                                 </div>
@@ -335,54 +354,61 @@ function SeriesDetailsContent() {
                         </div>
 
                         <div className="z-20 relative mx-auto px-6 md:px-10 lg:px-20 pb-12 w-full max-w-7xl">
-                    <div className="space-y-6 max-w-2xl">
-                        <div className="space-y-4">
-                            <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
-                                {title}
-                            </h1>
-                            <div className="flex flex-wrap items-center gap-4 font-medium text-slate-300 text-sm">
-                                <span className="bg-primary/20 px-2.5 py-1 border border-primary/30 rounded text-primary">
-                                    HD
-                                </span>
-                                <span>{year}</span>
-                                <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
-                                <span>{seasonsCount} Seasons</span>
-                                <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
-                                <span className="flex items-center gap-1.5 text-primary">
-                                    <Star fill="currentColor" size={16} /> {rating}
-                                </span>
+                            <div className="space-y-6 max-w-2xl">
+                                <div className="space-y-4">
+                                    <h1 className="font-bold text-slate-100 text-5xl md:text-7xl uppercase tracking-tighter">
+                                        {title}
+                                    </h1>
+                                    <div className="flex flex-wrap items-center gap-4 font-medium text-slate-300 text-sm">
+                                        <span className="bg-primary/20 px-2.5 py-1 border border-primary/30 rounded text-primary">
+                                            HD
+                                        </span>
+                                        <span>{year}</span>
+                                        <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
+                                        <span>{seasonsCount} Seasons</span>
+                                        <span className="bg-slate-500 rounded-full w-1.5 h-1.5"></span>
+                                        <span className="flex items-center gap-1.5 text-primary">
+                                            <Star fill="currentColor" size={16} /> {rating}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 pt-4">
+                                    {trailerUrl && (
+                                        <a
+                                            href={trailerUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
+                                        >
+                                            <Play fill="currentColor" size={20} />
+                                            Play Trailer
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={toggleWatchlist}
+                                        className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                    >
+                                        {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
+                                        {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
+                                    </button>
+                                    <button
+                                        onClick={toggleWatched}
+                                        className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatched ? 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                    >
+                                        {isWatched ? <Check size={20} /> : <Eye size={20} />}
+                                        {isWatched ? 'Watched It' : 'Mark as Watched'}
+                                    </button>
+                                    <button
+                                        onClick={toggleFavorite}
+                                        className={`flex justify-center items-center backdrop-blur-md rounded-xl w-[52px] h-[52px] border transition-all ${isFavorited ? 'bg-pink-500/20 border-pink-500 text-pink-500 hover:bg-pink-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                        title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
+                                    >
+                                        <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} className={isFavorited ? 'text-pink-500' : ''} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="flex flex-wrap gap-4 pt-4">
-                            {trailerUrl && (
-                                <a
-                                    href={trailerUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-2 bg-primary px-8 py-3.5 rounded-xl font-bold text-background-dark hover:scale-105 transition-transform"
-                                >
-                                    <Play fill="currentColor" size={20} />
-                                    Play Trailer
-                                </a>
-                            )}
-                            <button
-                                onClick={toggleWatchlist}
-                                className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatchlisted ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
-                            >
-                                {isWatchlisted ? <Check size={20} /> : <Plus size={20} />}
-                                {isWatchlisted ? 'Added to Watchlist' : 'Add to Watchlist'}
-                            </button>
-                            <button
-                                onClick={toggleWatched}
-                                className={`flex items-center gap-2 backdrop-blur-md px-6 py-3.5 border rounded-xl font-semibold text-base transition-all ${isWatched ? 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
-                            >
-                                {isWatched ? <Check size={20} /> : <Eye size={20} />}
-                                {isWatched ? 'Watched It' : 'Mark as Watched'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
                     </>
                 )}
             </section>

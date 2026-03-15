@@ -26,17 +26,18 @@ export function HeroSection({ heroItem, isLoading }: HeroSectionProps) {
     const backdropUrl = heroItem.backdrop_path ? `${TMDB_IMAGE_BASE}${heroItem.backdrop_path}` : '';
     const rating = heroItem.vote_average ? heroItem.vote_average.toFixed(1) : 'NR';
 
+    const derivedMediaType = heroItem.media_type || (heroItem.first_air_date ? 'tv' : 'movie');
+    const href = `/${derivedMediaType === 'tv' ? 'series' : 'movie'}/${heroItem.id}`;
+
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === heroItem.id);
 
     const toggleWatchlist = () => {
         if (isWatchlisted) {
-            removeFromWatchlist({ mediaId: heroItem.id, mediaType: heroItem.media_type as 'movie' | 'tv' || 'movie' });
+            removeFromWatchlist({ mediaId: heroItem.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         } else {
-            addToWatchlist({ mediaId: heroItem.id, mediaType: heroItem.media_type as 'movie' | 'tv' || 'movie' });
+            addToWatchlist({ mediaId: heroItem.id, mediaType: derivedMediaType as 'movie' | 'tv' });
         }
     };
-
-    const href = `/${heroItem.media_type === 'tv' ? 'series' : 'movie'}/${heroItem.id}`;
 
     return (
         <div className="relative w-full h-[70vh] min-h-[600px]">
@@ -64,7 +65,7 @@ export function HeroSection({ heroItem, isLoading }: HeroSectionProps) {
                     <span className="bg-primary px-2 py-1 rounded font-bold text-background-dark text-xs uppercase tracking-wider">
                         Trending
                     </span>
-                    {heroItem.media_type === 'tv' && (
+                    {derivedMediaType === 'tv' && (
                         <span className="bg-black/40 backdrop-blur-sm px-2 py-1 border border-white/20 rounded font-bold text-slate-300 text-xs uppercase tracking-wider">
                             TV Series
                         </span>

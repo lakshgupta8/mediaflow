@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye } from 'lucide-react';
+import { Play, Plus, Star, MessageSquare, Edit3, Check, Eye, Heart } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { tmdbService } from '@/services/tmdbService';
@@ -25,7 +25,17 @@ function MovieDetailsContent() {
         enabled: !!id,
     });
 
-    const { watchlist, addToWatchlist, removeFromWatchlist, recentWatches, addToRecent, removeFromRecent } = useSupabase();
+    const { 
+        watchlist, 
+        addToWatchlist, 
+        removeFromWatchlist, 
+        recentWatches, 
+        addToRecent, 
+        removeFromRecent,
+        favorites,
+        addToFavorites,
+        removeFromFavorites 
+    } = useSupabase();
 
     useEffect(() => {
         if (!isWatching || !movie) return;
@@ -82,6 +92,7 @@ function MovieDetailsContent() {
 
     const isWatchlisted = watchlist.some((w: { media_id: number }) => w.media_id === movie.id);
     const isWatched = recentWatches.some((r: { media_id: number }) => r.media_id === movie.id);
+    const isFavorited = favorites.some((f: { media_id: number }) => f.media_id === movie.id);
 
     // Find the first YouTube trailer, or fallback to any YouTube video attached
     const trailerVideo = movie.videos?.results?.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') ||
@@ -104,6 +115,13 @@ function MovieDetailsContent() {
         }
     };
 
+    const toggleFavorite = () => {
+        if (isFavorited) {
+            removeFromFavorites({ mediaId: movie.id, mediaType: 'movie' });
+        } else {
+            addToFavorites({ mediaId: movie.id, mediaType: 'movie' });
+        }
+    };
 
     return (
         <div className="flex flex-col pb-12 w-full overflow-x-hidden">
@@ -186,6 +204,13 @@ function MovieDetailsContent() {
                                     >
                                         {isWatched ? <Check size={20} /> : <Eye size={20} />}
                                         {isWatched ? 'Watched It' : 'Mark as Watched'}
+                                    </button>
+                                    <button
+                                        onClick={toggleFavorite}
+                                        className={`flex justify-center items-center backdrop-blur-md rounded-xl w-[52px] h-[52px] border transition-all ${isFavorited ? 'bg-pink-500/20 border-pink-500 text-pink-500 hover:bg-pink-500/30' : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'}`}
+                                        title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
+                                    >
+                                        <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} className={isFavorited ? 'text-pink-500' : ''} />
                                     </button>
                                 </div>
                             </div>
