@@ -8,11 +8,14 @@ export interface User {
 
 export interface AuthState {
     isAuthenticated: boolean;
+    /** True until the first session check against Appwrite has completed. */
+    isLoading: boolean;
     user: User | null;
 }
 
 const initialState: AuthState = {
     isAuthenticated: false,
+    isLoading: true,
     user: null,
 };
 
@@ -22,10 +25,12 @@ export const authSlice = createSlice({
     reducers: {
         login: (state, action: PayloadAction<User>) => {
             state.isAuthenticated = true;
+            state.isLoading = false;
             state.user = action.payload;
         },
         logout: (state) => {
             state.isAuthenticated = false;
+            state.isLoading = false;
             state.user = null;
         },
     },

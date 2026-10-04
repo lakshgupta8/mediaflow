@@ -1,2 +1,0 @@
-app/series/[id]/page.tsx(230,59): error TS7006: Parameter 'ep' implicitly has an 'any' type.
-app/series/[id]/page.tsx(230,63): error TS7006: Parameter 'index' implicitly has an 'any' type.

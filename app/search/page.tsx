@@ -1,402 +1,382 @@
 "use client";
 
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { tmdbService } from '@/services/tmdbService';
-import { MovieCard } from '@/components/MovieCard';
-import { Search, LayoutGrid, List, ChevronLeft, ChevronRight, SlidersHorizontal, TrendingUp, X, User } from 'lucide-react';
-import { Suspense, useState, useMemo, useCallback } from 'react';
-import Link from 'next/link';
-import { PersonCard } from '@/components/PersonCard';
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronLeft, ChevronRight, Compass, Search, SearchX, X } from "lucide-react";
+import { tmdbService, type MediaItem } from "@/services/tmdbService";
+import { mediaTitle } from "@/lib/media";
+import { MediaCard, MediaCardSkeleton } from "@/components/media/MediaCard";
+import { gridClass } from "@/components/media/MediaGrid";
+import { MediaRail } from "@/components/media/Rail";
+import { PersonCard } from "@/components/media/PersonCard";
+import { Button, ButtonLink, Chip, Container, EmptyState, Skeleton, cx } from "@/components/ui/primitives";
 
-type FilterType = 'all' | 'movie' | 'tv' | 'person';
-type SortType = 'relevance' | 'rating' | 'year';
-type ViewMode = 'grid' | 'list';
+type ResultFilter = "all" | "movie" | "tv" | "person";
+type SortKey = "relevance" | "rating" | "newest";
 
-const FILTERS: { label: string; value: FilterType }[] = [
-    { label: 'All', value: 'all' },
-    { label: 'Movies', value: 'movie' },
-    { label: 'TV Shows', value: 'tv' },
-    { label: 'People', value: 'person' },
+const MAX_PAGES = 500;
+
+const FILTERS: { value: ResultFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "movie", label: "Movies" },
+    { value: "tv", label: "Series" },
+    { value: "person", label: "People" },
 ];
 
-const SORT_OPTIONS: { label: string; value: SortType }[] = [
-    { label: 'Relevance', value: 'relevance' },
-    { label: 'Rating', value: 'rating' },
-    { label: 'Year', value: 'year' },
+const SORTS: { value: SortKey; label: string }[] = [
+    { value: "relevance", label: "Relevance" },
+    { value: "rating", label: "Rating" },
+    { value: "newest", label: "Newest" },
 ];
 
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+const SUPPORTED = new Set(["movie", "tv", "person"]);
+const dateOf = (item: MediaItem) => item.release_date || item.first_air_date || "";
+
+const searchHref = (q: string, page = 1) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    return qs ? `/search?${qs}` : "/search";
+};
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={<SearchFallback />}>
+            <SearchContent />
+        </Suspense>
+    );
+}
 
 function SearchContent() {
-    const searchParams = useSearchParams();
     const router = useRouter();
-    const query = searchParams.get('q') || '';
+    const searchParams = useSearchParams();
+    const q = (searchParams.get("q") || "").trim();
+    const page = Math.min(Math.max(Number(searchParams.get("page")) || 1, 1), MAX_PAGES);
 
-    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-    const [sortBy, setSortBy] = useState<SortType>('relevance');
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const [filter, setFilter] = useState<ResultFilter>("all");
+    const [sort, setSort] = useState<SortKey>("relevance");
 
-    const { data: searchResults, isLoading } = useQuery({
-        queryKey: ['search', query, currentPage],
-        queryFn: () => tmdbService.searchMulti(query, currentPage),
-        enabled: !!query,
+    const { data, isLoading, isFetching, isError, refetch } = useQuery({
+        queryKey: ["search", q, page],
+        queryFn: () => tmdbService.searchMulti(q, page),
+        enabled: q.length > 0,
+        // Keep the previous page on screen while paging through the same query.
+        placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === q ? previous : undefined),
+        staleTime: 1000 * 60 * 5,
     });
 
-    const totalPages = searchResults?.total_pages
-        ? Math.min(searchResults.total_pages, 500)
-        : 1;
-    const totalResults = searchResults?.total_results || 0;
+    const { data: trending, isLoading: isLoadingTrending } = useQuery({
+        queryKey: ["trending", "all", "day"],
+        queryFn: () => tmdbService.getTrending("all", "day"),
+        enabled: q.length === 0,
+        staleTime: 1000 * 60 * 30,
+    });
 
-    // Filter results by media type
-    const filteredResults = useMemo(() => {
-        const results = searchResults?.results || [];
-        if (activeFilter === 'all') return results;
-        return results.filter(item => item.media_type === activeFilter);
-    }, [searchResults, activeFilter]);
+    const results = (data?.results || []).filter((item) => SUPPORTED.has(item.media_type || ""));
+    const counts: Record<ResultFilter, number> = {
+        all: results.length,
+        movie: results.filter((r) => r.media_type === "movie").length,
+        tv: results.filter((r) => r.media_type === "tv").length,
+        person: results.filter((r) => r.media_type === "person").length,
+    };
 
-    // Sort results
-    const sortedResults = useMemo(() => {
-        const items = [...filteredResults];
-        switch (sortBy) {
-            case 'rating':
-                return items.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
-            case 'year': {
-                const getYear = (item: typeof items[0]) => {
-                    const d = item.release_date || item.first_air_date || '';
-                    return d ? new Date(d).getFullYear() : 0;
-                };
-                return items.sort((a, b) => getYear(b) - getYear(a));
+    const visible = results
+        .filter((item) => filter === "all" || item.media_type === filter)
+        .map((item, index) => ({ item, index }))
+        .sort((a, b) => {
+            if (sort === "rating") {
+                // People have no rating; rank them by popularity after rated titles.
+                const ra = a.item.media_type === "person" ? -1 : a.item.vote_average || 0;
+                const rb = b.item.media_type === "person" ? -1 : b.item.vote_average || 0;
+                return rb - ra || (b.item.popularity || 0) - (a.item.popularity || 0);
             }
-            default:
-                return items;
-        }
-    }, [filteredResults, sortBy]);
+            if (sort === "newest") return dateOf(b.item).localeCompare(dateOf(a.item)) || a.index - b.index;
+            return a.index - b.index;
+        })
+        .map(({ item }) => item);
 
-    const handleFilterChange = useCallback((filter: FilterType) => {
-        setActiveFilter(filter);
-    }, []);
+    const totalPages = Math.min(data?.total_pages || 0, MAX_PAGES);
+    const totalResults = data?.total_results || 0;
 
-    const handleSortChange = useCallback((sort: SortType) => {
-        setSortBy(sort);
-        setShowSortDropdown(false);
-    }, []);
-
-    const goToPage = useCallback((page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    }, [totalPages]);
-
-    // Build visible page numbers
-    const pageNumbers = useMemo(() => {
-        const pages: (number | 'ellipsis')[] = [];
-        if (totalPages <= 7) {
-            for (let i = 1; i <= totalPages; i++) pages.push(i);
-        } else {
-            pages.push(1);
-            if (currentPage > 3) pages.push('ellipsis');
-            const start = Math.max(2, currentPage - 1);
-            const end = Math.min(totalPages - 1, currentPage + 1);
-            for (let i = start; i <= end; i++) pages.push(i);
-            if (currentPage < totalPages - 2) pages.push('ellipsis');
-            pages.push(totalPages);
-        }
-        return pages;
-    }, [currentPage, totalPages]);
+    const goToPage = (next: number) => {
+        router.push(searchHref(q, next), { scroll: false });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
     return (
-        <div className="flex flex-col gap-0 px-8 pt-24 pb-8 w-full min-h-[80vh]">
-            {/* Search hero section */}
-            <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="flex justify-center items-center bg-primary/10 rounded-xl w-10 h-10">
-                        <Search size={20} className="text-primary" />
-                    </div>
-                    <div>
-                        {query ? (
-                            <>
-                                <h1 className="font-bold text-white text-2xl">
-                                    Results for <span className="text-primary">&quot;{query}&quot;</span>
-                                </h1>
-                                <p className="text-slate-400 text-sm">
-                                    {isLoading ? 'Searching...' : `${totalResults.toLocaleString()} results found`}
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <h1 className="font-bold text-white text-2xl">Search</h1>
-                                <p className="text-slate-400 text-sm">Discover movies, TV shows, and more</p>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Filters & Controls bar */}
-            {query && (
-                <div className="flex md:flex-row flex-col md:items-center justify-between gap-4 bg-surface-dark/60 backdrop-blur-md mb-6 px-4 py-3 border border-white/5 rounded-2xl">
-                    {/* Filter pills */}
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                        {FILTERS.map(f => (
-                            <button
-                                key={f.value}
-                                onClick={() => handleFilterChange(f.value)}
-                                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                                    activeFilter === f.value
-                                        ? 'bg-primary text-background-dark shadow-[0_0_12px_rgba(19,236,91,0.3)]'
-                                        : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                                }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Right-side controls */}
-                    <div className="flex items-center gap-3">
-                        {/* Sort dropdown */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-slate-300 text-sm transition-colors"
-                            >
-                                <SlidersHorizontal size={14} />
-                                <span className="hidden sm:inline">{SORT_OPTIONS.find(s => s.value === sortBy)?.label}</span>
-                            </button>
-                            {showSortDropdown && (
+        <div>
+            {/* Search header */}
+            <section className="relative -mt-16 pt-16 border-line border-b overflow-hidden isolate">
+                <div aria-hidden className="-z-10 absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_50%_0%,rgb(19_236_91/0.16),transparent_70%)]" />
+                <Container className="pt-10 sm:pt-16 pb-8 sm:pb-10">
+                    <div className="mx-auto max-w-3xl text-center">
+                        <div className="mb-2 font-semibold text-[11px] text-primary uppercase tracking-[0.14em]">Search</div>
+                        <h1 className="font-display font-extrabold text-fg text-4xl sm:text-5xl tracking-tight">
+                            {q ? (
                                 <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowSortDropdown(false)} />
-                                    <div className="right-0 z-50 absolute bg-surface-dark shadow-2xl mt-2 py-1 border border-white/10 rounded-xl min-w-[160px] overflow-hidden">
-                                        {SORT_OPTIONS.map(s => (
-                                            <button
-                                                key={s.value}
-                                                onClick={() => handleSortChange(s.value)}
-                                                className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                    sortBy === s.value
-                                                        ? 'text-primary bg-primary/10'
-                                                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                                }`}
-                                            >
-                                                {s.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    Results for <span className="text-gradient">&ldquo;{q}&rdquo;</span>
+                                </>
+                            ) : (
+                                <>
+                                    Find it on <span className="text-gradient">any service</span>
                                 </>
                             )}
-                        </div>
-
-                        {/* Divider */}
-                        <div className="bg-white/10 w-px h-6" />
-
-                        {/* View toggle */}
-                        <div className="flex items-center bg-white/5 rounded-lg overflow-hidden">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-1.5 transition-colors ${
-                                    viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-slate-400 hover:text-white'
-                                }`}
-                                title="Grid view"
-                            >
-                                <LayoutGrid size={16} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`p-1.5 transition-colors ${
-                                    viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-slate-400 hover:text-white'
-                                }`}
-                                title="List view"
-                            >
-                                <List size={16} />
-                            </button>
-                        </div>
+                        </h1>
+                        <p className="mt-3 text-fg-muted">Movies, series and people, with where to stream, rent or buy in your region.</p>
+                        <SearchForm key={q} initial={q} onSubmit={(value) => router.replace(searchHref(value))} />
                     </div>
-                </div>
-            )}
+                </Container>
+            </section>
 
-            {/* Content area */}
-            {isLoading ? (
-                /* Loading skeleton */
-                <div className="gap-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 animate-pulse">
-                    {[...Array(18)].map((_, i) => (
-                        <div key={i} className="flex flex-col gap-2">
-                            <div className="bg-white/5 rounded-xl w-full aspect-2/3" />
-                            <div className="bg-white/5 rounded w-3/4 h-3" />
-                            <div className="bg-white/5 rounded w-1/2 h-3" />
-                        </div>
-                    ))}
-                </div>
-            ) : sortedResults.length > 0 ? (
-                <>
-                    {/* Grid View */}
-                    {viewMode === 'grid' ? (
-                        <div className="gap-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                            {sortedResults.map((item) => (
-                                item.media_type === 'person' ? (
-                                    <PersonCard key={`person-${item.id}`} item={item} />
-                                ) : (
-                                    <MovieCard key={`${item.media_type}-${item.id}`} item={item} fillWidth />
-                                )
-                            ))}
-                        </div>
-                    ) : (
-                        /* List View */
-                        <div className="flex flex-col gap-3">
-                            {sortedResults.map((item) => {
-                                const title = item.title || item.name || 'Unknown';
-                                const releaseDate = item.release_date || item.first_air_date || '';
-                                const year = releaseDate ? new Date(releaseDate).getFullYear() : '';
-                                const rating = item.vote_average ? item.vote_average.toFixed(1) : null;
-                                const isPerson = item.media_type === 'person';
-                                const href = isPerson 
-                                    ? `/people/${item.id}` 
-                                    : `/${item.media_type === 'tv' ? 'series' : 'movie'}/${item.id}`;
-                                const displayImage = isPerson 
-                                    ? (item.profile_path ? `${TMDB_IMAGE_BASE}${item.profile_path}` : '')
-                                    : (item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : '');
-
-                                return (
-                                    <Link
-                                        key={`list-${item.media_type}-${item.id}`}
-                                        href={href}
-                                        className="group flex gap-4 bg-surface-dark/40 hover:bg-surface-dark/70 p-3 border border-white/5 hover:border-primary/30 rounded-xl transition-all duration-200"
+            <Container className="pt-6">
+                {!q ? (
+                    <div className="flex flex-col gap-10 pt-4">
+                        <MediaRail
+                            eyebrow="Today"
+                            title="Trending now"
+                            subtitle="What everyone is searching for"
+                            items={trending?.results.filter((r) => r.media_type === "movie" || r.media_type === "tv")}
+                            isLoading={isLoadingTrending}
+                        />
+                    </div>
+                ) : isError ? (
+                    <EmptyState
+                        icon={<SearchX size={28} />}
+                        title="Search is unavailable"
+                        description="We couldn't reach the catalogue right now. Check your connection and try again."
+                        action={<Button onClick={() => refetch()}>Try again</Button>}
+                    />
+                ) : !isLoading && results.length === 0 ? (
+                    <EmptyState
+                        icon={<SearchX size={28} />}
+                        title={`No results for “${q}”`}
+                        description="Check the spelling, try a shorter title, or search for an actor or director instead."
+                        action={
+                            <ButtonLink href="/browse?type=movie">
+                                <Compass size={16} />
+                                Browse movies
+                            </ButtonLink>
+                        }
+                    />
+                ) : (
+                    <>
+                        {/* Toolbar */}
+                        <div className="flex md:flex-row flex-col md:justify-between md:items-center gap-3 mb-6">
+                            <div role="group" aria-label="Filter results" className="flex gap-2 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto no-scrollbar">
+                                {FILTERS.map((f) => (
+                                    <Chip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
+                                        {f.label}
+                                        {!isLoading && <span className="opacity-60 tabular-nums">{counts[f.value]}</span>}
+                                    </Chip>
+                                ))}
+                            </div>
+                            <div className="flex justify-between md:justify-end items-center gap-3">
+                                <p className="text-fg-subtle text-sm tabular-nums" aria-live="polite">
+                                    {isLoading
+                                        ? "Searching..."
+                                        : `${totalResults.toLocaleString()} ${totalResults === 1 ? "result" : "results"}${totalPages > 1 ? ` · page ${page} of ${totalPages}` : ""}`}
+                                </p>
+                                <div className="relative shrink-0">
+                                    <select
+                                        value={sort}
+                                        onChange={(e) => setSort(e.target.value as SortKey)}
+                                        aria-label="Sort results"
+                                        className="bg-white/6 hover:bg-white/10 pr-9 pl-3.5 border border-line focus:border-primary/50 rounded-full outline-none h-9 font-medium text-fg text-sm transition-colors appearance-none cursor-pointer"
                                     >
-                                        {/* Poster/Profile */}
-                                        <div
-                                            className="shrink-0 bg-white/5 bg-cover bg-center rounded-lg w-16 h-24"
-                                            style={displayImage ? { backgroundImage: `url('${displayImage}')` } : {}}
-                                        >
-                                            {!displayImage && isPerson && (
-                                                <div className="flex justify-center items-center w-full h-full">
-                                                    <User size={24} className="text-slate-600" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        {/* Info */}
-                                        <div className="flex flex-col flex-1 justify-center gap-1 min-w-0">
-                                            <h3 className="font-semibold text-white group-hover:text-primary truncate transition-colors">
-                                                {title}
-                                            </h3>
-                                            <div className="flex items-center gap-3 text-slate-400 text-xs">
-                                                <span className="bg-white/10 px-2 py-0.5 rounded text-xs uppercase">
-                                                    {item.media_type === 'tv' ? 'TV' : item.media_type === 'person' ? 'Person' : 'Movie'}
-                                                </span>
-                                                {year && <span>{year}</span>}
-                                                {rating && (
-                                                    <span className="flex items-center gap-1 text-yellow-400">
-                                                        ★ {rating}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {item.overview && (
-                                                <p className="text-slate-500 text-xs line-clamp-2">
-                                                    {item.overview}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </Link>
-                                );
-                            })}
+                                        {SORTS.map((s) => (
+                                            <option key={s.value} value={s.value} className="bg-surface-raised text-fg">
+                                                {s.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={15} aria-hidden className="top-1/2 right-3 absolute text-fg-muted -translate-y-1/2 pointer-events-none" />
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex justify-center items-center gap-2 mt-10">
-                            <button
-                                onClick={() => goToPage(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="flex items-center gap-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 px-3 py-2 rounded-lg text-slate-300 text-sm disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronLeft size={16} /> Prev
-                            </button>
+                        {/* Results */}
+                        {isLoading ? (
+                            <div className={gridClass}>
+                                {Array.from({ length: 14 }).map((_, i) => (
+                                    <MediaCardSkeleton key={i} />
+                                ))}
+                            </div>
+                        ) : visible.length === 0 ? (
+                            <EmptyState
+                                icon={<SearchX size={28} />}
+                                title={`No ${FILTERS.find((f) => f.value === filter)?.label.toLowerCase()} on this page`}
+                                description="Try another filter, or check the next page of results."
+                                action={<Button variant="outline" onClick={() => setFilter("all")}>Show all results</Button>}
+                            />
+                        ) : (
+                            <div className={cx(gridClass, "transition-opacity", isFetching && "opacity-60")} aria-busy={isFetching}>
+                                {visible.map((item) =>
+                                    item.media_type === "person" ? (
+                                        <PersonCard
+                                            key={`person-${item.id}`}
+                                            item={item}
+                                            subtitle={personSubtitle(item)}
+                                        />
+                                    ) : (
+                                        <MediaCard key={`${item.media_type}-${item.id}`} item={item} />
+                                    ),
+                                )}
+                            </div>
+                        )}
 
-                            {pageNumbers.map((p, i) =>
-                                p === 'ellipsis' ? (
-                                    <span key={`e-${i}`} className="px-2 text-slate-500">…</span>
-                                ) : (
-                                    <button
-                                        key={p}
-                                        onClick={() => goToPage(p)}
-                                        className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-all ${
-                                            currentPage === p
-                                                ? 'bg-primary text-background-dark shadow-[0_0_12px_rgba(19,236,91,0.3)]'
-                                                : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                    >
-                                        {p}
-                                    </button>
-                                )
-                            )}
-
-                            <button
-                                onClick={() => goToPage(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className="flex items-center gap-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 px-3 py-2 rounded-lg text-slate-300 text-sm disabled:cursor-not-allowed transition-colors"
-                            >
-                                Next <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    )}
-                </>
-            ) : query ? (
-                /* Empty state */
-                <div className="flex flex-col flex-1 justify-center items-center py-20 min-h-[50vh]">
-                    <div className="flex justify-center items-center bg-white/5 mb-6 rounded-full w-24 h-24">
-                        <Search size={40} className="text-slate-500" />
-                    </div>
-                    <h2 className="mb-2 font-bold text-white text-2xl">No results found</h2>
-                    <p className="mb-8 max-w-md text-center text-slate-400">
-                        We couldn&apos;t find anything matching &quot;{query}&quot;. Try adjusting your search or explore what&apos;s trending.
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => router.push(`/search?q=${encodeURIComponent(query)}`)}
-                            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-5 py-2.5 rounded-xl text-slate-300 text-sm transition-colors"
-                        >
-                            <X size={16} /> Clear Filters
-                        </button>
-                        <Link
-                            href="/"
-                            className="flex items-center gap-2 bg-primary hover:bg-primary/90 shadow-[0_0_20px_rgba(19,236,91,0.25)] px-5 py-2.5 rounded-xl font-semibold text-background-dark text-sm transition-all"
-                        >
-                            <TrendingUp size={16} /> Browse Trending
-                        </Link>
-                    </div>
-                </div>
-            ) : (
-                /* No query — initial state */
-                <div className="flex flex-col flex-1 justify-center items-center py-20 min-h-[50vh]">
-                    <div className="flex justify-center items-center bg-primary/10 mb-6 rounded-full w-24 h-24">
-                        <Search size={40} className="text-primary/50" />
-                    </div>
-                    <h2 className="mb-2 font-bold text-white text-2xl">Start searching</h2>
-                    <p className="max-w-md text-center text-slate-400">
-                        Use the search bar above to find your favorite movies, TV shows, and more.
-                    </p>
-                </div>
-            )}
+                        {totalPages > 1 && (
+                            <Pagination page={page} totalPages={totalPages} onChange={goToPage} disabled={isFetching} />
+                        )}
+                    </>
+                )}
+            </Container>
         </div>
     );
 }
 
-export default function SearchPage() {
+/** People results carry a known_for list; show their department plus a famous title. */
+function personSubtitle(item: MediaItem) {
+    const knownFor = (item as MediaItem & { known_for?: MediaItem[] }).known_for?.[0];
+    return [item.known_for_department, knownFor ? mediaTitle(knownFor) : null].filter(Boolean).join(" · ") || "Person";
+}
+
+function SearchForm({ initial, onSubmit }: { initial: string; onSubmit: (value: string) => void }) {
+    const [value, setValue] = useState(initial);
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        onSubmit(value.trim());
+    };
+
     return (
-        <Suspense fallback={
-            <div className="flex flex-col gap-4 px-8 pt-24 pb-8 animate-pulse">
-                <div className="bg-white/5 rounded-xl w-64 h-8" />
-                <div className="bg-white/5 rounded-xl w-48 h-4" />
-                <div className="gap-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 mt-8">
-                    {[...Array(12)].map((_, i) => (
-                        <div key={i} className="bg-white/5 rounded-xl w-full aspect-2/3" />
-                    ))}
-                </div>
+        <form role="search" onSubmit={submit} className="relative mt-8">
+            <label htmlFor="search-input" className="sr-only">
+                Search movies, series and people
+            </label>
+            <Search size={20} aria-hidden className="top-1/2 left-5 z-10 absolute text-fg-subtle -translate-y-1/2 pointer-events-none" />
+            <input
+                id="search-input"
+                type="search"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="Search movies, series, people..."
+                autoComplete="off"
+                autoFocus={!initial}
+                enterKeyHint="search"
+                className="bg-surface-dark/80 focus:bg-surface-raised shadow-2xl shadow-black/40 backdrop-blur-md pr-32 sm:pr-36 pl-13 border border-line-strong focus:border-primary/60 rounded-2xl outline-none focus:ring-4 focus:ring-primary/15 w-full h-14 sm:h-16 text-fg placeholder:text-fg-subtle text-base sm:text-lg transition-all [&::-webkit-search-cancel-button]:hidden"
+            />
+            <div className="top-1/2 right-2 absolute flex items-center gap-1 -translate-y-1/2">
+                {value && (
+                    <button
+                        type="button"
+                        onClick={() => setValue("")}
+                        aria-label="Clear search"
+                        className="flex justify-center items-center hover:bg-white/10 rounded-lg size-9 text-fg-muted hover:text-fg transition-colors"
+                    >
+                        <X size={17} />
+                    </button>
+                )}
+                <Button type="submit" size="sm" className="sm:px-5 sm:h-11">
+                    Search
+                </Button>
             </div>
-        }>
-            <SearchContent />
-        </Suspense>
+        </form>
+    );
+}
+
+/** Page list with first/last anchors and a sliding window around the current page. */
+function pageWindow(page: number, total: number): Array<number | "gap"> {
+    const pages = new Set([1, total, page - 1, page, page + 1]);
+    if (page <= 3) [2, 3, 4].forEach((p) => pages.add(p));
+    if (page >= total - 2) [total - 3, total - 2, total - 1].forEach((p) => pages.add(p));
+    const sorted = Array.from(pages).filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+
+    const out: Array<number | "gap"> = [];
+    sorted.forEach((p, i) => {
+        if (i > 0 && p - sorted[i - 1] > 1) out.push("gap");
+        out.push(p);
+    });
+    return out;
+}
+
+function Pagination({
+    page,
+    totalPages,
+    onChange,
+    disabled,
+}: {
+    page: number;
+    totalPages: number;
+    onChange: (page: number) => void;
+    disabled?: boolean;
+}) {
+    const itemClass = "flex justify-center items-center rounded-lg min-w-10 h-10 px-2 text-sm font-semibold tabular-nums transition-colors";
+
+    return (
+        <nav aria-label="Search results pages" className="flex justify-center items-center gap-1.5 mt-12">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onChange(page - 1)}
+                disabled={page <= 1 || disabled}
+                aria-label="Previous page"
+                className="h-10"
+            >
+                <ChevronLeft size={16} />
+                <span className="hidden sm:inline">Prev</span>
+            </Button>
+
+            <ol className="flex items-center gap-1">
+                {pageWindow(page, totalPages).map((p, i) =>
+                    p === "gap" ? (
+                        <li key={`gap-${i}`} aria-hidden className="px-1 text-fg-subtle">
+                            &hellip;
+                        </li>
+                    ) : (
+                        <li key={p} className={cx(Math.abs(p - page) > 1 && p !== 1 && p !== totalPages && "hidden sm:block")}>
+                            <button
+                                type="button"
+                                onClick={() => onChange(p)}
+                                disabled={disabled && p !== page}
+                                aria-label={`Page ${p}`}
+                                aria-current={p === page ? "page" : undefined}
+                                className={cx(
+                                    itemClass,
+                                    p === page ? "bg-primary text-primary-ink" : "text-fg-muted hover:bg-white/8 hover:text-fg",
+                                )}
+                            >
+                                {p}
+                            </button>
+                        </li>
+                    ),
+                )}
+            </ol>
+
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onChange(page + 1)}
+                disabled={page >= totalPages || disabled}
+                aria-label="Next page"
+                className="h-10"
+            >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight size={16} />
+            </Button>
+        </nav>
+    );
+}
+
+function SearchFallback() {
+    return (
+        <Container className="pt-10 sm:pt-16">
+            <div className="flex flex-col items-center gap-4 mx-auto max-w-3xl">
+                <Skeleton className="rounded-md w-16 h-3" />
+                <Skeleton className="w-2/3 h-12" />
+                <Skeleton className="mt-6 rounded-2xl w-full h-16" />
+            </div>
+        </Container>
     );
 }

@@ -1,49 +1,81 @@
-import { createClient } from '@supabase/supabase-js';
+import { Query } from 'node-appwrite';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+    createAdminClient,
+    createUserClient,
+    DATABASE_ID,
+    AVATAR_BUCKET_ID,
+    TABLES,
+    USER_OWNED_TABLES,
+} from '@/lib/appwrite-server';
+
+const PAGE_SIZE = 100;
 
 export async function DELETE(request: NextRequest) {
     try {
-        // Get the access token from the Authorization header
+        // The browser sends a short-lived Appwrite JWT proving who is asking.
         const authHeader = request.headers.get('Authorization');
-        const token = authHeader?.replace('Bearer ', '');
+        const jwt = authHeader?.replace('Bearer ', '');
 
-        if (!token) {
+        if (!jwt) {
             return NextResponse.json({ error: 'No auth token provided' }, { status: 401 });
         }
 
-        // Use the service role client to verify the token and get the user
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        );
-
-        const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-        if (userError || !user) {
+        let userId: string;
+        try {
+            const { account } = createUserClient(jwt);
+            userId = (await account.get()).$id;
+        } catch {
             return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
         }
 
-        const userId = user.id;
+        const { users, tablesDB, storage } = createAdminClient();
 
-        // Delete from all user tables
-        await supabaseAdmin.from('watchlists').delete().eq('user_id', userId);
-        await supabaseAdmin.from('favorites').delete().eq('user_id', userId);
-        await supabaseAdmin.from('recent_watches').delete().eq('user_id', userId);
-        await supabaseAdmin.from('user_settings').delete().eq('user_id', userId);
-        await supabaseAdmin.from('users').delete().eq('id', userId);
+        // Remove every row the user owns, page by page.
+        for (const tableId of USER_OWNED_TABLES) {
+            for (;;) {
+                const page = await tablesDB.listRows({
+                    databaseId: DATABASE_ID,
+                    tableId,
+                    queries: [Query.equal('user_id', userId), Query.limit(PAGE_SIZE)],
+                });
+                if (page.rows.length === 0) break;
 
-        // Delete the auth user (frees up the email for reuse)
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-        if (deleteError) {
-            console.error('Failed to delete auth user:', deleteError);
-            return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 });
+                await Promise.all(
+                    page.rows.map((row) =>
+                        tablesDB.deleteRow({ databaseId: DATABASE_ID, tableId, rowId: row.$id })
+                    )
+                );
+                if (page.rows.length < PAGE_SIZE) break;
+            }
         }
+
+        // Public profile (row ID = user ID). Ignore if it was never created.
+        try {
+            await tablesDB.deleteRow({ databaseId: DATABASE_ID, tableId: TABLES.profiles, rowId: userId });
+        } catch {
+            // no profile row
+        }
+
+        // Avatar files are named "<userId>-<timestamp>.<ext>".
+        try {
+            const files = await storage.listFiles({
+                bucketId: AVATAR_BUCKET_ID,
+                queries: [Query.startsWith('name', userId), Query.limit(PAGE_SIZE)],
+            });
+            await Promise.all(
+                files.files.map((file) => storage.deleteFile({ bucketId: AVATAR_BUCKET_ID, fileId: file.$id }))
+            );
+        } catch (error) {
+            console.error('Failed to delete avatar files:', error);
+        }
+
+        // Finally delete the auth user, which frees the email for reuse.
+        await users.delete({ userId });
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Delete account error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 });
     }
 }

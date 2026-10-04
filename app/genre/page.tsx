@@ -1,117 +1,94 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { Film, Search } from 'lucide-react';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
-import { useQuery } from '@tanstack/react-query';
-import { tmdbService, TMDBGenre } from '@/services/tmdbService';
-import Link from 'next/link';
-import { generateGradientById } from '@/utils/helpers'; // Assuming we have or will create this
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Shapes } from "lucide-react";
+import { tmdbService, type MediaType, type TMDBGenre } from "@/services/tmdbService";
+import { useGenres } from "@/hooks/useProviders";
+import { TmdbImage } from "@/components/media/TmdbImage";
+import { Container, cx, PageHeader, Skeleton } from "@/components/ui/primitives";
 
-// Generate a seed once per module load (changes on each page refresh)
-const pageSeed = Date.now();
+// Changes on every page load so covers feel fresh.
+const seed = Date.now();
 
-function GenreCard({ genre }: { genre: TMDBGenre }) {
-    const { data: topMovies } = useQuery({
-        queryKey: ['topMoviesForGenre', genre.id],
-        queryFn: () => tmdbService.getTopMoviesForGenre(genre.id),
-        staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours
+function GenreTile({ genre, type, featured }: { genre: TMDBGenre; type: MediaType; featured?: boolean }) {
+    const { data: covers } = useQuery({
+        queryKey: ["genreCover", type, genre.id],
+        queryFn: async () => (await tmdbService.discover(type, { genreIds: [genre.id], minVotes: type === "tv" ? 200 : 1000 })).results,
+        staleTime: 1000 * 60 * 60 * 24,
     });
 
-    // Pick a pseudo-random movie using a stable seed (genre ID + page load time)
-    const bestMovie = useMemo(() => {
-        if (!topMovies || topMovies.length === 0) return null;
-        const index = (genre.id + pageSeed) % topMovies.length;
-        return topMovies[index];
-    }, [topMovies, genre.id]);
-
-    const bgImage = bestMovie?.poster_path || bestMovie?.backdrop_path
-        ? `https://image.tmdb.org/t/p/w780${bestMovie.poster_path || bestMovie.backdrop_path}`
-        : null;
+    const cover = useMemo(() => {
+        const withArt = (covers || []).filter((c) => c.backdrop_path);
+        return withArt.length ? withArt[(genre.id + seed) % withArt.length] : null;
+    }, [covers, genre.id]);
 
     return (
         <Link
-            href={`/genre/${genre.id}?name=${encodeURIComponent(genre.name)}`}
-            className="group block relative bg-surface-dark hover:shadow-[0_10px_40px_-10px_rgba(19,236,91,0.3)] rounded-2xl ring-1 ring-white/10 hover:ring-primary w-full aspect-video overflow-hidden transition-all hover:-translate-y-2 duration-500 cursor-pointer"
+            href={`/browse?type=${type}&genre=${genre.id}`}
+            className={cx(
+                "group/genre relative bg-surface-raised rounded-2xl ring-1 ring-line hover:ring-primary/50 overflow-hidden transition-all hover:-translate-y-0.5",
+                featured ? "sm:col-span-2 sm:row-span-2 aspect-video sm:aspect-auto min-h-40" : "aspect-video",
+            )}
         >
-            {/* Background Image/Gradient */}
-            <div
-                className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
-                style={bgImage ? { backgroundImage: `url('${bgImage}')` } : { background: generateGradientById(genre.id) }}
-            />
-
-            {/* Gradient Overlay */}
-            <div className={`absolute inset-0 bg-linear-to-t ${bgImage ? 'from-black/95 via-black/60 to-black/10' : 'from-black/90 via-black/40 to-transparent'} opacity-80 group-hover:opacity-95 transition-opacity duration-500`} />
-
-            {/* Content */}
-            <div className="absolute inset-0 flex flex-col justify-end p-6">
-                <div className="flex justify-between items-center">
-                    <h3 className="drop-shadow-md font-bold text-white group-hover:text-primary text-2xl transition-colors">
-                        {genre.name}
-                    </h3>
-                    <div className="flex justify-center items-center bg-white/20 opacity-0 group-hover:opacity-100 backdrop-blur-md rounded-full w-10 h-10 transition-all translate-y-4 group-hover:translate-y-0 duration-300">
-                        <Film size={20} className="text-white group-hover:text-primary" />
-                    </div>
+            {cover ? (
+                <TmdbImage path={cover.backdrop_path} size="w780" alt="" className="group-hover/genre:scale-105 transition-transform duration-700 ease-out-expo" />
+            ) : (
+                <div className="absolute inset-0 skeleton" />
+            )}
+            <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-black/5" />
+            <div className="absolute inset-x-0 bottom-0 flex justify-between items-end gap-3 p-4 sm:p-5">
+                <div className="min-w-0">
+                    <h3 className={cx("font-display font-bold text-white", featured ? "text-2xl sm:text-4xl" : "text-lg sm:text-xl")}>{genre.name}</h3>
+                    {cover && <p className="mt-0.5 text-white/60 text-xs truncate">Featuring {cover.title || cover.name}</p>}
                 </div>
-                <p className={`opacity-0 group-hover:opacity-100 ${bestMovie ? 'mt-1' : 'mt-2'} font-medium text-primary/80 text-sm transition-opacity duration-500 delay-100`}>
-                    Explore {genre.name.toLowerCase()} titles ↗
-                </p>
+                <span className="flex justify-center items-center bg-white/15 group-hover/genre:bg-primary backdrop-blur-md rounded-full size-9 text-white group-hover/genre:text-primary-ink transition-colors shrink-0">
+                    <ArrowUpRight size={16} />
+                </span>
             </div>
         </Link>
     );
 }
 
-export default function GenrePage() {
-    const { data: genreData, isLoading } = useQuery({
-        queryKey: ['genres', 'movie'],
-        queryFn: () => tmdbService.getGenres('movie'),
-    });
-
-    const genres = genreData?.genres || [];
-
-    const searchQuery = useSelector((state: RootState) => state.search.query).toLowerCase();
-    const filteredGenres = genres.filter(genre => {
-        if (!searchQuery) return true;
-        return genre.name.toLowerCase().includes(searchQuery);
-    });
+export default function GenresPage() {
+    const [type, setType] = useState<MediaType>("movie");
+    const { data, isLoading } = useGenres(type);
+    const genres = data?.genres || [];
 
     return (
-        <div className="flex flex-col gap-10 mx-auto mt-16 px-6 lg:px-10 py-8 pb-20 w-full max-w-[1400px]">
+        <Container>
+            <PageHeader
+                eyebrow="Explore"
+                icon={<Shapes size={22} />}
+                title="Genres"
+                description="Jump into a mood. Every genre opens the full catalogue, filterable by the services you use."
+                actions={
+                    <div role="tablist" aria-label="Media type" className="flex bg-white/5 p-1 border border-line rounded-xl">
+                        {(["movie", "tv"] as const).map((t) => (
+                            <button
+                                key={t}
+                                type="button"
+                                role="tab"
+                                aria-selected={type === t}
+                                onClick={() => setType(t)}
+                                className={cx(
+                                    "px-4 rounded-lg h-9 font-semibold text-sm transition-colors",
+                                    type === t ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg",
+                                )}
+                            >
+                                {t === "movie" ? "Movies" : "Series"}
+                            </button>
+                        ))}
+                    </div>
+                }
+            />
 
-            {/* Header */}
-            <div className="flex flex-col gap-3">
-                <h1 className="font-black text-white text-4xl md:text-5xl leading-tight tracking-[-0.033em]">
-                    Explore Categories
-                </h1>
-                <p className="max-w-2xl font-medium text-slate-400 text-lg">
-                    Find your next obsession by diving into our curated genres. From heart-pounding <span className="text-primary italic">Action</span> to mind-bending <span className="text-primary italic">Sci-Fi</span>.
-                </p>
+            <div className="gap-3 sm:gap-4 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 grid-flow-dense">
+                {isLoading
+                    ? Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="rounded-2xl aspect-video" />)
+                    : genres.map((g, i) => <GenreTile key={`${type}-${g.id}`} genre={g} type={type} featured={i === 0 || i === 7} />)}
             </div>
-
-            {/* Categories Grid */}
-            {isLoading ? (
-                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
-                    {[...Array(8)].map((_, i) => (
-                        <div key={i} className="bg-white/10 rounded-2xl w-full aspect-video" />
-                    ))}
-                </div>
-            ) : filteredGenres.length > 0 ? (
-                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {filteredGenres.map((genre) => (
-                        <GenreCard key={genre.id} genre={genre} />
-                    ))}
-                </div>
-            ) : (
-                <div className="flex flex-col flex-1 justify-center items-center opacity-50 py-20 min-h-[40vh]">
-                    <Search size={64} className="mb-4 text-slate-500" />
-                    <h2 className="font-semibold text-slate-400 text-2xl">No genres found</h2>
-                    <p className="mt-2 text-slate-500 text-sm">
-                        No matches for &quot;{searchQuery}&quot;.
-                    </p>
-                </div>
-            )}
-
-        </div>
+        </Container>
     );
 }

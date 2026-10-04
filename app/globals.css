@@ -1,59 +1,152 @@
 @import "tailwindcss";
 
+/*
+ * MediaFlow design tokens.
+ * Dark-only palette: near-black green surfaces with the MediaFlow neon-green accent.
+ * Legacy token names (primary, background-dark, surface-dark) are kept so
+ * every screen draws from the same palette.
+ */
 @theme {
-  --color-primary: #13ec5b;
-  --color-background-light: #f6f8f6;
+  /* Surfaces */
   --color-background-dark: #050a06;
-  --color-surface-dark: #112217;
+  --color-background-light: #050a06;
+  --color-surface-dark: #0d1a11;
+  --color-surface-raised: #112217;
+  --color-surface-hover: #183021;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.14);
 
-  --font-display: "Spline Sans", sans-serif;
+  /* Text */
+  --color-fg: #f1f5f9;
+  --color-fg-muted: #94a3b8;
+  --color-fg-subtle: #64748b;
 
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
+  /* Accent */
+  --color-primary: #13ec5b;
+  --color-primary-light: #5ff58d;
+  --color-primary-strong: #0fbf4a;
+  --color-primary-ink: #050a06;
+  --color-accent-pink: #ec4899;
+
+  /* Status */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  /* Type */
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radii */
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-fade-in: fade-in 0.4s var(--ease-out-expo) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
 }
 
 @layer base {
-  :root {
-    --background: var(--color-background-light);
-    --foreground: #0f172a; /* text-slate-900 */
-  }
-
-  .dark {
-    --background: var(--color-background-dark);
-    --foreground: #f1f5f9; /* text-slate-100 */
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    background-color: var(--background);
-    color: var(--foreground);
-    @apply font-display text-slate-900 dark:text-slate-100;
+    background-color: var(--color-background-dark);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: rgb(19 236 91 / 0.3);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Subtle animated placeholder used by every loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, rgb(255 255 255 / 0.04) 25%, rgb(255 255 255 / 0.09) 37%, rgb(255 255 255 / 0.04) 63%);
+    background-size: 400% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  /* Frosted panel used for nav, popovers and floating controls */
+  .glass {
+    background: rgb(5 10 6 / 0.74);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, var(--color-primary), #86efac);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
 
 @layer utilities {
-  /* Custom scrollbar for webkit */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-background-dark);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #23482f;
-    border-radius: 4px;
+    background: rgb(255 255 255 / 0.1);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-primary);
+    background-color: rgb(19 236 91 / 0.6);
   }
 
-  /* Hide scrollbar for horizontal scrolling areas but keep functionality */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
   .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
