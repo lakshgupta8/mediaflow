@@ -2,9 +2,8 @@
 
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import Link from "next/link";
-import { Lock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Lock, LogIn } from "lucide-react";
+import { ButtonLink, Skeleton } from "@/components/ui/primitives";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -13,41 +12,43 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children, title, description }: AuthGuardProps) {
-    const user = useSelector((state: RootState) => state.auth.user);
-    const [mounted, setMounted] = useState(false);
+    const { user, isLoading } = useSelector((state: RootState) => state.auth);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setMounted(true);
-        }, 0);
-        return () => clearTimeout(timer);
-    }, []);
-
-    // Prevent hydration mismatch or flash
-    if (!mounted) {
+    // Skeleton while the session is being restored, so logged-in users never see the lock screen flash.
+    if (isLoading) {
         return (
-            <div className="flex flex-col flex-1 justify-center items-center p-8 py-20 min-h-[40vh]">
-                <div className="flex flex-col items-center animate-pulse">
-                    <div className="bg-white/10 mb-6 rounded-full w-16 h-16"></div>
-                    <div className="bg-white/10 mb-3 rounded-lg w-48 h-8"></div>
-                    <div className="bg-white/10 mb-8 rounded-lg w-64 h-4"></div>
-                    <div className="bg-white/10 rounded-xl w-40 h-12"></div>
-                </div>
+            <div
+                role="status"
+                aria-label="Checking your session"
+                className="flex flex-col flex-1 justify-center items-center px-6 py-20 min-h-[40vh]"
+            >
+                <Skeleton className="mb-6 rounded-2xl size-16" />
+                <Skeleton className="mb-3 rounded-lg w-56 h-7" />
+                <Skeleton className="mb-8 rounded-lg w-72 max-w-full h-4" />
+                <Skeleton className="w-44 h-11" />
             </div>
         );
     }
 
     if (!user) {
         return (
-            <div className="flex flex-col flex-1 justify-center items-center p-8 py-20 min-h-[40vh]">
-                <div className="bg-white/5 shadow-xl mb-6 p-6 border border-white/10 rounded-2xl">
-                    <Lock size={48} className="text-slate-400" />
+            <div className="flex flex-col flex-1 justify-center items-center px-6 py-20 min-h-[40vh] text-center animate-fade-in">
+                <div className="relative mb-6">
+                    <div aria-hidden className="absolute inset-0 bg-primary/25 blur-2xl rounded-full" />
+                    <div className="relative flex justify-center items-center bg-surface-raised border border-line-strong rounded-2xl size-16 text-primary-light">
+                        <Lock size={26} />
+                    </div>
                 </div>
-                <h2 className="mb-3 font-bold text-white text-3xl text-center">{title}</h2>
-                <p className="mb-8 max-w-md text-slate-400 text-center">{description}</p>
-                <Link href="/login" className="bg-primary hover:bg-primary/90 shadow-[0_0_20px_rgba(19,236,91,0.2)] px-8 py-3 rounded-xl font-bold text-background-dark hover:scale-105 active:scale-95 transition-all">
-                    Log In to Continue
-                </Link>
+                <h2 className="font-display font-bold text-fg text-2xl sm:text-3xl tracking-tight">{title}</h2>
+                <p className="mt-3 max-w-md text-fg-muted text-sm sm:text-base leading-relaxed">{description}</p>
+                <div className="flex sm:flex-row flex-col items-center gap-3 mt-8">
+                    <ButtonLink href="/login" size="lg">
+                        <LogIn size={18} /> Log in to continue
+                    </ButtonLink>
+                    <ButtonLink href="/signup" variant="ghost" size="lg">
+                        Create an account
+                    </ButtonLink>
+                </div>
             </div>
         );
     }

@@ -1,21 +1,33 @@
-import type { Metadata } from "next";
-import { Spline_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
 import { ReduxProvider } from "@/components/ReduxProvider";
 import { Providers } from "@/components/Providers";
 import { AuthProvider } from "@/components/AuthProvider";
+import { PreferencesSync } from "@/components/PreferencesSync";
+import { AppShell } from "@/components/layout/AppShell";
 
-const splineSans = Spline_Sans({
-  variable: "--font-spline-sans",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "MediaFlow - Desktop App",
-  description: "A dynamic movie search and catalog application.",
+  title: {
+    default: "MediaFlow · Every source, one place",
+    template: "%s · MediaFlow",
+  },
+  description: "Find where to stream, rent or buy any movie or series across every service in your region.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#050a06",
 };
 
 export default function RootLayout({
@@ -24,29 +36,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${splineSans.variable} font-display antialiased overflow-hidden h-screen flex`}
-      >
+    <html lang="en" className={`${bricolage.variable} ${inter.variable}`}>
+      <body className="bg-background-dark min-h-dvh font-sans text-fg antialiased">
         <ReduxProvider>
           <AuthProvider>
             <Providers>
-              <Sidebar />
-              <main className="relative flex flex-col flex-1 h-full overflow-hidden">
-                <Header />
-                <div className="flex-1 pb-10 overflow-x-hidden overflow-y-auto">
-                  {children}
-
-                  <footer className="mt-8 pt-8 pb-12 border-white/5 border-t text-slate-500 text-sm text-center">
-                    <p>© {(new Date()).getFullYear()} MediaFlow. All rights reserved.</p>
-                    <div className="flex justify-center gap-4 mt-2">
-                      <a className="hover:text-primary" href="#">Privacy Policy</a>
-                      <a className="hover:text-primary" href="#">Terms of Service</a>
-                      <a className="hover:text-primary" href="#">Help Center</a>
-                    </div>
-                  </footer>
-                </div>
-              </main>
+              <PreferencesSync />
+              <AppShell>{children}</AppShell>
             </Providers>
           </AuthProvider>
         </ReduxProvider>
